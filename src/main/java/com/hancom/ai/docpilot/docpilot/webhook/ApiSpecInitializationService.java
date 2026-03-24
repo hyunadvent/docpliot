@@ -78,14 +78,17 @@ public class ApiSpecInitializationService {
     public void initialize() {
         log.info("=== API 명세서 초기화 시작 ===");
 
+        ConfluenceStructure structure = configLoaderService.getConfluenceStructure();
+        String spaceKey = structure.getSpaceKey();
+
+        // DB와 Confluence 간 동기화 (삭제된 페이지 감지)
+        validateDbWithConfluence(spaceKey, structure);
+
         if (maxControllers == 0) {
             log.info("max-controllers=0, API 명세서 자동 생성 비활성화");
             log.info("=== API 명세서 초기화 완료 ===");
             return;
         }
-
-        ConfluenceStructure structure = configLoaderService.getConfluenceStructure();
-        String spaceKey = structure.getSpaceKey();
 
         // 서식 템플릿 페이지를 한 번 읽어서 캐싱
         loadTemplateFormat(spaceKey);
@@ -99,6 +102,79 @@ public class ApiSpecInitializationService {
         }
 
         log.info("=== API 명세서 초기화 완료 ===");
+    }
+
+    /**
+     * DB에 처리 완료로 기록된 Controller의 Confluence 페이지가 실제 존재하는지 검증합니다.
+     * 삭제된 페이지는 DB에서 미처리 상태로 초기화합니다.
+     */
+    private void validateDbWithConfluence(String spaceKey, ConfluenceStructure structure) {
+        log.info("DB-Confluence 동기화 검증 시작");
+
+        for (ConfluenceStructure.ProjectMapping project : structure.getProjects()) {
+            Long projectId = project.getGitlabProjectId();
+            List<ControllerPageMappingEntity> mappings = controllerPageMappingRepository.findByGitlabProjectId(projectId);
+
+            if (mappings.isEmpty()) continue;
+
+            // API 명세서 페이지의 실제 자식 페이지 ID 수집
+            Set<Long> existingPageIds = new HashSet<>();
+            try {
+                String prefix = (project.getPageTitlePrefix() != null && !project.getPageTitlePrefix().isBlank())
+                        ? project.getPageTitlePrefix() + " " : "";
+                String apiSpecTitle = prefix + "API 명세서";
+
+                Long parentId = confluenceTargetService.ensureParentPages(spaceKey, project.getConfluenceParentPages());
+                Map<String, Object> apiSpecPage = confluenceTargetService.getChildPage(parentId, apiSpecTitle);
+
+                if (apiSpecPage != null) {
+                    Long apiSpecPageId = toLong(apiSpecPage.get("id"));
+                    existingPageIds = getChildPageIds(apiSpecPageId);
+                }
+            } catch (Exception e) {
+                log.warn("Confluence 페이지 조회 실패, 동기화 건너뜀: project={}", project.getGitlabPath());
+                continue;
+            }
+
+            // DB 레코드 검증
+            for (ControllerPageMappingEntity mapping : mappings) {
+                if (!mapping.isProcessed()) continue;
+
+                if (mapping.getConfluencePageId() == null || !existingPageIds.contains(mapping.getConfluencePageId())) {
+                    log.info("Confluence 페이지 삭제 감지, DB 초기화: {} (pageId={})",
+                            mapping.getControllerPath(), mapping.getConfluencePageId());
+
+                    // 하위 API 매핑 삭제
+                    apiPageMappingRepository.deleteAll(
+                            apiPageMappingRepository.findByControllerMappingId(mapping.getId()));
+
+                    // Controller 매핑 삭제
+                    controllerPageMappingRepository.delete(mapping);
+                }
+            }
+        }
+
+        log.info("DB-Confluence 동기화 검증 완료");
+    }
+
+    /**
+     * 특정 페이지의 모든 자식 페이지 ID를 수집합니다.
+     */
+    @SuppressWarnings("unchecked")
+    private Set<Long> getChildPageIds(Long parentId) {
+        Set<Long> ids = new HashSet<>();
+        try {
+            Map<String, Object> response = confluenceTargetService.getChildPagesFull(parentId);
+            List<Map<String, Object>> results = (List<Map<String, Object>>) response.get("results");
+            if (results != null) {
+                for (Map<String, Object> page : results) {
+                    ids.add(toLong(page.get("id")));
+                }
+            }
+        } catch (Exception e) {
+            log.debug("자식 페이지 ID 조회 실패: parentId={}", parentId);
+        }
+        return ids;
     }
 
     /**
