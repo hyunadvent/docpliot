@@ -81,6 +81,9 @@ public class ApiSpecInitializationService {
         ConfluenceStructure structure = configLoaderService.getConfluenceStructure();
         String spaceKey = structure.getSpaceKey();
 
+        // 서식 템플릿 페이지를 한 번 읽어서 캐싱 (UI 생성에서도 사용하므로 항상 로드)
+        loadTemplateFormat(spaceKey);
+
         // DB와 Confluence 간 동기화 (삭제된 페이지 감지)
         validateDbWithConfluence(spaceKey, structure);
 
@@ -89,9 +92,6 @@ public class ApiSpecInitializationService {
             log.info("=== API 명세서 초기화 완료 ===");
             return;
         }
-
-        // 서식 템플릿 페이지를 한 번 읽어서 캐싱
-        loadTemplateFormat(spaceKey);
 
         for (ConfluenceStructure.ProjectMapping project : structure.getProjects()) {
             try {
@@ -307,9 +307,12 @@ public class ApiSpecInitializationService {
         String code = gitLabSourceService.getFileContent(projectId, controllerPath, branch);
         log.info("Controller 분석 시작: {}", controllerPath);
 
+        // Controller 소스에서 API 시그니처만 추출 (함수 본문, private 메서드 제거)
+        String apiSignatures = extractApiSignatures(code);
+
         // LLM으로 Controller 분석 → JSON
         String analysisPrompt = promptTemplateService.getPrompt(
-                "controller_analysis", code, project.getGitlabPath());
+                "controller_analysis", apiSignatures, project.getGitlabPath());
         String analysisResult = llmRouter.generate(analysisPrompt);
         analysisResult = extractJson(analysisResult);
 
@@ -752,6 +755,131 @@ public class ApiSpecInitializationService {
             log.error("서식 템플릿 로드 실패: '{}'", templatePageTitle, e);
             cachedTemplateXml = null;
         }
+    }
+
+    /**
+     * Controller 소스에서 API 분석에 필요한 시그니처만 추출합니다.
+     * - 클래스 레벨 어노테이션 (@RestController, @Controller, @RequestMapping)
+     * - public 메서드의 어노테이션 + 시그니처 (함수 본문은 ... 으로 대체)
+     * - private/protected 메서드는 제거
+     */
+    String extractApiSignatures(String controllerCode) {
+        String[] lines = controllerCode.split("\n");
+        StringBuilder sb = new StringBuilder();
+
+        boolean inMethod = false;
+        boolean isPublicMethod = false;
+        int braceCount = 0;
+        boolean methodBraceStarted = false;
+
+        for (int i = 0; i < lines.length; i++) {
+            String trimmed = lines[i].trim();
+
+            // 메서드 본문 내부 — skip
+            if (inMethod) {
+                for (char c : lines[i].toCharArray()) {
+                    if (c == '{') braceCount++;
+                    else if (c == '}') braceCount--;
+                }
+                if (methodBraceStarted && braceCount == 0) {
+                    if (isPublicMethod) {
+                        sb.append("        ...\n    }\n\n");
+                    }
+                    inMethod = false;
+                    methodBraceStarted = false;
+                }
+                continue;
+            }
+
+            // 클래스 레벨 어노테이션
+            if (trimmed.startsWith("@RestController") || trimmed.startsWith("@Controller")
+                    || trimmed.startsWith("@RequestMapping") || trimmed.startsWith("@CrossOrigin")) {
+                sb.append(lines[i]).append("\n");
+                continue;
+            }
+
+            // 클래스 선언
+            if (trimmed.startsWith("public class ") || trimmed.startsWith("public abstract class ")) {
+                sb.append(lines[i]).append("\n\n");
+                continue;
+            }
+
+            // 매핑 어노테이션 (API 메서드 시작 신호)
+            if (trimmed.startsWith("@GetMapping") || trimmed.startsWith("@PostMapping")
+                    || trimmed.startsWith("@PutMapping") || trimmed.startsWith("@DeleteMapping")
+                    || trimmed.startsWith("@PatchMapping") || trimmed.startsWith("@ResponseBody")
+                    || (trimmed.startsWith("@RequestMapping") && !trimmed.contains("class "))) {
+                sb.append(lines[i]).append("\n");
+                continue;
+            }
+
+            // 메서드 시그니처 감지
+            if (trimmed.startsWith("public ") && trimmed.contains("(")) {
+                isPublicMethod = true;
+                sb.append(lines[i]).append("\n");
+
+                // 여는 중괄호 찾기
+                inMethod = true;
+                braceCount = 0;
+                methodBraceStarted = false;
+                for (char c : lines[i].toCharArray()) {
+                    if (c == '{') { braceCount++; methodBraceStarted = true; }
+                    else if (c == '}') braceCount--;
+                }
+                // 같은 줄에 { 가 없으면 다음 줄들에서 찾기
+                if (!methodBraceStarted) {
+                    // 파라미터가 여러 줄에 걸친 경우 — 시그니처 끝까지 출력
+                    for (int j = i + 1; j < lines.length; j++) {
+                        sb.append(lines[j]).append("\n");
+                        for (char c : lines[j].toCharArray()) {
+                            if (c == '{') { braceCount++; methodBraceStarted = true; }
+                            else if (c == '}') braceCount--;
+                        }
+                        if (methodBraceStarted) {
+                            i = j;
+                            break;
+                        }
+                    }
+                }
+
+                if (methodBraceStarted && braceCount == 0) {
+                    // 한 줄짜리 메서드
+                    sb.append("\n");
+                    inMethod = false;
+                    methodBraceStarted = false;
+                }
+                continue;
+            }
+
+            // private/protected 메서드 — 본문 전체 skip
+            if ((trimmed.startsWith("private ") || trimmed.startsWith("protected ")) && trimmed.contains("(")) {
+                isPublicMethod = false;
+                inMethod = true;
+                braceCount = 0;
+                methodBraceStarted = false;
+                for (char c : lines[i].toCharArray()) {
+                    if (c == '{') { braceCount++; methodBraceStarted = true; }
+                    else if (c == '}') braceCount--;
+                }
+                if (!methodBraceStarted) {
+                    for (int j = i + 1; j < lines.length; j++) {
+                        for (char c : lines[j].toCharArray()) {
+                            if (c == '{') { braceCount++; methodBraceStarted = true; }
+                            else if (c == '}') braceCount--;
+                        }
+                        if (methodBraceStarted) { i = j; break; }
+                    }
+                }
+                if (methodBraceStarted && braceCount == 0) {
+                    inMethod = false;
+                    methodBraceStarted = false;
+                }
+                continue;
+            }
+        }
+
+        String result = sb.toString().trim();
+        return result.isEmpty() ? controllerCode : result;
     }
 
     /**
