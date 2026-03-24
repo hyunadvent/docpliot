@@ -56,7 +56,11 @@ public class ProjectInitializationService {
         log.info("=== 프로젝트 초기화 완료 ===");
     }
 
-    private void initializeProject(String spaceKey, ConfluenceStructure.ProjectMapping project) {
+    /**
+     * 프로젝트의 기본 페이지(서비스 개요 등)를 Confluence에 생성합니다.
+     * 서버 시작 시 자동 호출되며, UI에서 프로젝트 추가 시에도 호출됩니다.
+     */
+    public void initializeProject(String spaceKey, ConfluenceStructure.ProjectMapping project) {
         log.info("프로젝트 확인: {} (id: {})", project.getGitlabPath(), project.getGitlabProjectId());
 
         List<String> parentPages = project.getConfluenceParentPages();

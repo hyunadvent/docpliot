@@ -2,6 +2,7 @@ package com.hancom.ai.docpilot.docpilot.web;
 
 import com.hancom.ai.docpilot.docpilot.config.ConfigLoaderService;
 import com.hancom.ai.docpilot.docpilot.config.model.ConfluenceStructure;
+import com.hancom.ai.docpilot.docpilot.webhook.ProjectInitializationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -17,9 +18,12 @@ import java.util.Map;
 public class ProjectApiController {
 
     private final ConfigLoaderService configLoaderService;
+    private final ProjectInitializationService projectInitializationService;
 
-    public ProjectApiController(ConfigLoaderService configLoaderService) {
+    public ProjectApiController(ConfigLoaderService configLoaderService,
+                                ProjectInitializationService projectInitializationService) {
         this.configLoaderService = configLoaderService;
+        this.projectInitializationService = projectInitializationService;
     }
 
     @GetMapping
@@ -49,9 +53,8 @@ public class ProjectApiController {
                     .body(Map.of("message", "이미 등록된 프로젝트 ID: " + newProject.getGitlabProjectId()));
         }
 
-        if (newProject.getPages() == null) {
-            newProject.setPages(new ArrayList<>());
-        }
+        // 기본 pages 설정 자동 생성
+        newProject.setPages(createDefaultPages());
         // 생성자 정보 저장
         newProject.setCreatedBy(auth.getName());
 
@@ -62,7 +65,16 @@ public class ProjectApiController {
         configLoaderService.saveConfluenceStructure(structure);
         log.info("프로젝트 추가: id={}, path={}, createdBy={}", newProject.getGitlabProjectId(), newProject.getGitlabPath(), auth.getName());
 
-        return ResponseEntity.ok(Map.of("message", "프로젝트가 등록되었습니다."));
+        // 서비스 개요 및 구성도 자동 생성 (비동기적으로 Confluence에 페이지 생성)
+        try {
+            String spaceKey = structure.getSpaceKey();
+            projectInitializationService.initializeProject(spaceKey, newProject);
+            log.info("프로젝트 초기 페이지 생성 완료: {}", newProject.getGitlabPath());
+        } catch (Exception e) {
+            log.error("프로젝트 초기 페이지 생성 실패: {}", newProject.getGitlabPath(), e);
+        }
+
+        return ResponseEntity.ok(Map.of("message", "프로젝트가 등록되고 서비스 개요 페이지가 생성되었습니다."));
     }
 
     @PutMapping("/{projectId}")
@@ -153,5 +165,35 @@ public class ProjectApiController {
     private boolean isAdmin(Authentication auth) {
         return auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+    }
+
+    /**
+     * 프로젝트 추가 시 기본 pages 설정을 생성합니다.
+     */
+    private List<ConfluenceStructure.Page> createDefaultPages() {
+        List<ConfluenceStructure.Page> pages = new ArrayList<>();
+
+        // 서비스 개요 및 구성도
+        ConfluenceStructure.Page serviceOverview = new ConfluenceStructure.Page();
+        serviceOverview.setId("service_overview");
+        serviceOverview.setTitle("서비스 개요 및 구성도");
+        serviceOverview.setAutoGenerate(true);
+        serviceOverview.setPromptTemplate("service_overview");
+        serviceOverview.setSourceFile("README.md");
+        serviceOverview.setTrigger(List.of("push", "merge_request"));
+        serviceOverview.setTargetFiles(List.of("README.md"));
+        pages.add(serviceOverview);
+
+        // API 명세서
+        ConfluenceStructure.Page apiSpec = new ConfluenceStructure.Page();
+        apiSpec.setId("api_spec");
+        apiSpec.setTitle("API 명세서");
+        apiSpec.setAutoGenerate(true);
+        apiSpec.setPromptTemplate("api_spec");
+        apiSpec.setTrigger(List.of("push", "merge_request"));
+        apiSpec.setTargetFiles(List.of("**/controller/**", "**/routes/**", "**/controllers/**"));
+        pages.add(apiSpec);
+
+        return pages;
     }
 }
