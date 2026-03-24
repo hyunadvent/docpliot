@@ -31,6 +31,9 @@ public class ConfluenceStructure {
         @JsonProperty("page_title_prefix")
         private String pageTitlePrefix;
 
+        @JsonProperty("created_by")
+        private String createdBy;
+
         private List<Page> pages;
     }
 

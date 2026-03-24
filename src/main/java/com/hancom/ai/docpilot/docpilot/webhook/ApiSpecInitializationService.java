@@ -78,6 +78,12 @@ public class ApiSpecInitializationService {
     public void initialize() {
         log.info("=== API 명세서 초기화 시작 ===");
 
+        if (maxControllers == 0) {
+            log.info("max-controllers=0, API 명세서 자동 생성 비활성화");
+            log.info("=== API 명세서 초기화 완료 ===");
+            return;
+        }
+
         ConfluenceStructure structure = configLoaderService.getConfluenceStructure();
         String spaceKey = structure.getSpaceKey();
 
@@ -183,7 +189,7 @@ public class ApiSpecInitializationService {
                 log.info("Controller 이미 처리됨, skip: {}", controllerPath);
                 continue;
             }
-            // maxControllers 제한 (0이면 무제한)
+            // maxControllers 제한 (-1이면 무제한, 양수이면 해당 수만큼)
             if (maxControllers > 0 && processedCount >= maxControllers) {
                 log.info("Controller 처리 수 제한({}) 도달, 나머지는 다음 실행에서 처리", maxControllers);
                 break;
