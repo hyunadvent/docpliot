@@ -132,6 +132,54 @@ public class ProjectApiController {
         return ResponseEntity.ok(Map.of("message", "프로젝트가 삭제되었습니다."));
     }
 
+    // ===== 공통 라이브러리 관리 =====
+
+    @GetMapping("/common-libraries")
+    public ResponseEntity<List<ConfluenceStructure.CommonLibrary>> listLibraries() {
+        List<ConfluenceStructure.CommonLibrary> libs = configLoaderService.getConfluenceStructure().getCommonLibraries();
+        return ResponseEntity.ok(libs != null ? libs : new ArrayList<>());
+    }
+
+    @PostMapping("/common-libraries")
+    public ResponseEntity<Map<String, String>> addLibrary(@RequestBody ConfluenceStructure.CommonLibrary library) {
+        ConfluenceStructure structure = configLoaderService.getConfluenceStructure();
+        List<ConfluenceStructure.CommonLibrary> libs = structure.getCommonLibraries();
+        if (libs == null) {
+            libs = new ArrayList<>();
+        }
+
+        boolean exists = libs.stream().anyMatch(l -> l.getGitlabProjectId().equals(library.getGitlabProjectId()));
+        if (exists) {
+            return ResponseEntity.badRequest().body(Map.of("message", "이미 등록된 라이브러리 ID: " + library.getGitlabProjectId()));
+        }
+
+        libs = new ArrayList<>(libs);
+        libs.add(library);
+        structure.setCommonLibraries(libs);
+        configLoaderService.saveConfluenceStructure(structure);
+
+        return ResponseEntity.ok(Map.of("message", "공통 라이브러리가 등록되었습니다."));
+    }
+
+    @DeleteMapping("/common-libraries/{projectId}")
+    public ResponseEntity<Map<String, String>> deleteLibrary(@PathVariable Long projectId) {
+        ConfluenceStructure structure = configLoaderService.getConfluenceStructure();
+        List<ConfluenceStructure.CommonLibrary> libs = structure.getCommonLibraries();
+        if (libs == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        libs = new ArrayList<>(libs);
+        boolean removed = libs.removeIf(l -> l.getGitlabProjectId().equals(projectId));
+        if (!removed) {
+            return ResponseEntity.notFound().build();
+        }
+
+        structure.setCommonLibraries(libs);
+        configLoaderService.saveConfluenceStructure(structure);
+        return ResponseEntity.ok(Map.of("message", "공통 라이브러리가 삭제되었습니다."));
+    }
+
     @GetMapping("/branches")
     public ResponseEntity<ConfluenceStructure.Branches> getBranches() {
         return ResponseEntity.ok(configLoaderService.getConfluenceStructure().getBranches());

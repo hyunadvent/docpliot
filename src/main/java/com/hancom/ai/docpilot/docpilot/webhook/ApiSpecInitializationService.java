@@ -21,6 +21,8 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -309,11 +311,13 @@ public class ApiSpecInitializationService {
 
         // Controller 소스에서 API 시그니처만 추출 (함수 본문, private 메서드 제거)
         String apiSignatures = extractApiSignatures(code);
+        log.debug("Controller 시그니처 추출 결과:\n{}", apiSignatures);
 
         // LLM으로 Controller 분석 → JSON
         String analysisPrompt = promptTemplateService.getPrompt(
                 "controller_analysis", apiSignatures, project.getGitlabPath());
         String analysisResult = llmRouter.generate(analysisPrompt);
+        log.debug("Controller 분석 LLM 응답:\n{}", analysisResult);
         analysisResult = extractJson(analysisResult);
 
         JsonNode analysis;
@@ -375,6 +379,13 @@ public class ApiSpecInitializationService {
         controllerMapping.setLastUpdated(LocalDateTime.now());
         controllerMapping = controllerPageMappingRepository.save(controllerMapping);
 
+        // 재생성 시 기존 API 매핑 초기화
+        if (forceUpdate) {
+            apiPageMappingRepository.deleteAll(
+                    apiPageMappingRepository.findByControllerMappingId(controllerMapping.getId()));
+            log.debug("기존 API 매핑 초기화: controllerId={}", controllerMapping.getId());
+        }
+
         // 각 API 엔드포인트 페이지 생성/업데이트 (최대 25개)
         int apiCount = 0;
         if (apis != null && apis.isArray()) {
@@ -424,12 +435,42 @@ public class ApiSpecInitializationService {
         // Controller에서 해당 메서드 코드만 추출
         String methodCode = extractMethodCode(controllerCode, methodName);
 
+        // 참조 DTO/Bean 클래스 소스코드 수집 (현재 프로젝트 + 의존 프로젝트 + 공통 라이브러리)
+        List<Long> allDependencies = new ArrayList<>();
+        if (project.getDependencyProjects() != null) {
+            allDependencies.addAll(project.getDependencyProjects());
+        }
+        List<ConfluenceStructure.CommonLibrary> commonLibs = configLoaderService.getConfluenceStructure().getCommonLibraries();
+        if (commonLibs != null) {
+            for (ConfluenceStructure.CommonLibrary lib : commonLibs) {
+                if (!allDependencies.contains(lib.getGitlabProjectId())) {
+                    allDependencies.add(lib.getGitlabProjectId());
+                }
+            }
+        }
+        String dtoSources = collectReferencedDtoSources(
+                project.getGitlabProjectId(), controllerCode, methodCode,
+                allDependencies.isEmpty() ? null : allDependencies);
+
         String method = api.has("method") ? api.get("method").asText() : "";
         String path = api.has("path") ? api.get("path").asText() : "";
 
-        String apiCode = String.format(
-                "대상 API: %s %s (메서드명: %s, 한국어명: %s)\n\n코드:\n%s",
-                method, path, methodName, koreanName, methodCode);
+        // Map 파라미터의 key 정보 추출
+        String mapKeyHints = extractMapKeyHints(methodCode);
+
+        StringBuilder apiCodeBuilder = new StringBuilder();
+        apiCodeBuilder.append(String.format(
+                "대상 API: %s %s (메서드명: %s, 한국어명: %s)\n\n", method, path, methodName, koreanName));
+        apiCodeBuilder.append("=== Controller 메서드 코드 ===\n").append(methodCode);
+        if (!dtoSources.isEmpty()) {
+            apiCodeBuilder.append("\n\n=== 참조 DTO/Bean 클래스 (Request/Response 필드 정보) ===\n");
+            apiCodeBuilder.append(dtoSources);
+        }
+        if (!mapKeyHints.isEmpty()) {
+            apiCodeBuilder.append("\n\n=== Map 파라미터 key 분석 결과 ===\n");
+            apiCodeBuilder.append(mapKeyHints);
+        }
+        String apiCode = apiCodeBuilder.toString();
 
         String detailPrompt;
         if (cachedTemplateXml != null) {
@@ -443,7 +484,7 @@ public class ApiSpecInitializationService {
 
         Long apiConfluencePageId;
         if (existing != null) {
-            // forceUpdate: 기존 페이지 업데이트
+            // 기존 페이지 업데이트
             apiConfluencePageId = toLong(existing.get("id"));
             @SuppressWarnings("unchecked")
             Map<String, Object> versionObj = (Map<String, Object>) existing.get("version");
@@ -452,10 +493,28 @@ public class ApiSpecInitializationService {
             confluenceTargetService.setPageWidthNarrow(apiConfluencePageId);
             log.info("API 페이지 업데이트: {}", apiPageTitle);
         } else {
-            Map<String, Object> created = confluenceTargetService.createPage(spaceKey, apiPageTitle, detailDoc, controllerPageId);
-            apiConfluencePageId = toLong(created.get("id"));
-            confluenceTargetService.setPageWidthNarrow(apiConfluencePageId);
-            log.info("API 페이지 생성: {}", apiPageTitle);
+            try {
+                Map<String, Object> created = confluenceTargetService.createPage(spaceKey, apiPageTitle, detailDoc, controllerPageId);
+                apiConfluencePageId = toLong(created.get("id"));
+                confluenceTargetService.setPageWidthNarrow(apiConfluencePageId);
+                log.info("API 페이지 생성: {}", apiPageTitle);
+            } catch (Exception e) {
+                // 동일 제목 페이지가 이미 존재하는 경우 (다른 Controller에서 같은 이름 생성)
+                // 스페이스 전체에서 검색하여 업데이트 시도
+                log.warn("API 페이지 생성 실패, 기존 페이지 검색: {} ({})", apiPageTitle, e.getMessage());
+                Map<String, Object> existingByTitle = confluenceTargetService.getPage(spaceKey, apiPageTitle);
+                if (existingByTitle != null) {
+                    apiConfluencePageId = toLong(existingByTitle.get("id"));
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> vObj = (Map<String, Object>) existingByTitle.get("version");
+                    int ver = ((Number) vObj.get("number")).intValue();
+                    confluenceTargetService.updatePage(apiConfluencePageId, apiPageTitle, detailDoc, ver + 1);
+                    confluenceTargetService.setPageWidthNarrow(apiConfluencePageId);
+                    log.info("API 페이지 기존 업데이트: {}", apiPageTitle);
+                } else {
+                    throw e;
+                }
+            }
         }
 
         // DB에 API 매핑 저장
@@ -813,8 +872,8 @@ public class ApiSpecInitializationService {
                 continue;
             }
 
-            // 메서드 시그니처 감지
-            if (trimmed.startsWith("public ") && trimmed.contains("(")) {
+            // 메서드 시그니처 감지 (public 또는 public @ResponseBody 패턴)
+            if ((trimmed.startsWith("public ") || trimmed.startsWith("public @")) && trimmed.contains("(")) {
                 isPublicMethod = true;
                 sb.append(lines[i]).append("\n");
 
@@ -852,7 +911,9 @@ public class ApiSpecInitializationService {
             }
 
             // private/protected 메서드 — 본문 전체 skip
-            if ((trimmed.startsWith("private ") || trimmed.startsWith("protected ")) && trimmed.contains("(")) {
+            // 메서드: { 또는 }로 끝남. 필드 선언: ;로 끝남
+            if ((trimmed.startsWith("private ") || trimmed.startsWith("protected ")) && trimmed.contains("(")
+                    && (trimmed.endsWith("{") || trimmed.endsWith("}"))) {
                 isPublicMethod = false;
                 inMethod = true;
                 braceCount = 0;
@@ -886,6 +947,226 @@ public class ApiSpecInitializationService {
      * Controller 소스코드에서 특정 메서드의 코드를 추출합니다.
      * 클래스 레벨 @RequestMapping과 해당 메서드의 어노테이션 + 본문을 반환합니다.
      */
+
+    /**
+     * Map 파라미터에서 .get("key") 패턴을 추출하여 key 이름과 캐스팅 타입을 분석합니다.
+     * 예: (String) map.get("name") → name: String
+     *     (Long) map.get("id")    → id: Long
+     *     map.get("data")         → data: Object
+     */
+    private String extractMapKeyHints(String methodCode) {
+        // Map 파라미터가 있는지 확인
+        if (!methodCode.contains("Map<String,") && !methodCode.contains("Map<String ,")) {
+            return "";
+        }
+
+        // Map 변수명 추출 (예: @RequestBody Map<String, Object> chatbotMap → chatbotMap)
+        Pattern mapParamPattern = Pattern.compile("Map\\s*<\\s*String\\s*,\\s*\\w+\\s*>\\s+(\\w+)");
+        Matcher mapParamMatcher = mapParamPattern.matcher(methodCode);
+
+        Map<String, List<String>> mapKeyInfos = new HashMap<>();
+
+        while (mapParamMatcher.find()) {
+            String mapVarName = mapParamMatcher.group(1);
+
+            // 해당 변수의 .get("key") 호출을 모두 찾기
+            // 패턴: (CastType) varName.get("key") 또는 varName.get("key")
+            Pattern getPattern = Pattern.compile(
+                    "(?:\\(\\s*([A-Z]\\w+)\\s*\\)\\s*)?" + Pattern.quote(mapVarName) + "\\.get\\(\\s*\"([^\"]+)\"\\s*\\)");
+            Matcher getMatcher = getPattern.matcher(methodCode);
+
+            List<String> keys = new ArrayList<>();
+            while (getMatcher.find()) {
+                String castType = getMatcher.group(1);
+                String key = getMatcher.group(2);
+                if (castType != null) {
+                    keys.add(key + " (" + castType + ")");
+                } else {
+                    keys.add(key + " (Object)");
+                }
+            }
+
+            if (!keys.isEmpty()) {
+                mapKeyInfos.put(mapVarName, keys);
+            }
+        }
+
+        if (mapKeyInfos.isEmpty()) return "";
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("@RequestBody Map 파라미터의 실제 사용 key 목록입니다. Request Parameter 작성 시 이 필드들을 포함하세요:\n");
+        for (Map.Entry<String, List<String>> entry : mapKeyInfos.entrySet()) {
+            sb.append("변수명: ").append(entry.getKey()).append("\n");
+            for (String keyInfo : entry.getValue()) {
+                sb.append("  - ").append(keyInfo).append("\n");
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Controller 메서드에서 참조하는 DTO/Bean 클래스의 소스코드를 수집합니다.
+     * @RequestBody, @ModelAttribute 파라미터 타입과 반환 타입의 커스텀 클래스를 탐색합니다.
+     */
+    private String collectReferencedDtoSources(Long projectId, String controllerCode, String methodCode) {
+        return collectReferencedDtoSources(projectId, controllerCode, methodCode, null);
+    }
+
+    private String collectReferencedDtoSources(Long projectId, String controllerCode, String methodCode,
+                                                List<Long> dependencyProjectIds) {
+        Set<String> dtoClassNames = new HashSet<>();
+
+        // 1. @RequestBody, @ModelAttribute 파라미터 타입 추출
+        Pattern paramPattern = Pattern.compile("@(?:RequestBody|ModelAttribute)\\s+(?:\\w+\\s+)?([A-Z]\\w+)");
+        Matcher paramMatcher = paramPattern.matcher(methodCode);
+        while (paramMatcher.find()) {
+            dtoClassNames.add(paramMatcher.group(1));
+        }
+
+        // 2. @RequestParam, @PathVariable 뒤의 커스텀 타입
+        Pattern reqParamPattern = Pattern.compile("@(?:RequestParam|PathVariable)[^)]*\\)\\s+([A-Z]\\w+)");
+        Matcher reqParamMatcher = reqParamPattern.matcher(methodCode);
+        while (reqParamMatcher.find()) {
+            dtoClassNames.add(reqParamMatcher.group(1));
+        }
+
+        // 3. 반환 타입 추출
+        Pattern returnPattern = Pattern.compile("public\\s+(?:@\\w+\\s+)?([A-Z][\\w<>,\\s?]+?)\\s+\\w+\\(");
+        Matcher returnMatcher = returnPattern.matcher(methodCode);
+        if (returnMatcher.find()) {
+            String returnSignature = returnMatcher.group(1);
+            Pattern typeInReturn = Pattern.compile("([A-Z][a-zA-Z0-9]+)");
+            Matcher typeInReturnMatcher = typeInReturn.matcher(returnSignature);
+            while (typeInReturnMatcher.find()) {
+                dtoClassNames.add(typeInReturnMatcher.group(1));
+            }
+        }
+
+        // 4. 제네릭 타입 추출
+        Pattern genericPattern = Pattern.compile("<[^>]*?([A-Z][a-zA-Z0-9]+)");
+        Matcher genericMatcher = genericPattern.matcher(methodCode);
+        while (genericMatcher.find()) {
+            dtoClassNames.add(genericMatcher.group(1));
+        }
+
+        // import에서 DTO 클래스의 패키지 경로 확인
+        Map<String, String> importMap = new HashMap<>();
+        Pattern importPattern = Pattern.compile("import\\s+([\\w.]+\\.([A-Z]\\w+))\\s*;");
+        Matcher importMatcher = importPattern.matcher(controllerCode);
+        while (importMatcher.find()) {
+            importMap.put(importMatcher.group(2), importMatcher.group(1));
+        }
+
+        // 기본/프레임워크 타입 제거
+        dtoClassNames.removeIf(this::isJavaBuiltinType);
+        if (dtoClassNames.isEmpty()) return "";
+
+        // 검색 대상 프로젝트 ID 목록 (현재 프로젝트 + 의존 프로젝트)
+        List<Long> searchProjectIds = new ArrayList<>();
+        searchProjectIds.add(projectId);
+        if (dependencyProjectIds != null) {
+            searchProjectIds.addAll(dependencyProjectIds);
+        }
+
+        StringBuilder sb = new StringBuilder();
+        Set<String> notFoundDtos = new HashSet<>();
+
+        for (String className : dtoClassNames) {
+            boolean found = false;
+
+            for (Long searchProjectId : searchProjectIds) {
+                try {
+                    String branch = gitLabSourceService.getDefaultBranch(searchProjectId);
+                    String dtoSource = findAndReadDtoSource(searchProjectId, branch, className, importMap);
+                    if (dtoSource != null) {
+                        sb.append("--- ").append(className).append(".java ---\n");
+                        sb.append(dtoSource).append("\n\n");
+                        collectNestedDtos(searchProjectId, branch, dtoSource, importMap, sb,
+                                dtoClassNames, searchProjectIds);
+                        found = true;
+                        break;
+                    }
+                } catch (Exception e) {
+                    log.debug("DTO 소스 조회 실패: {} (project={}, {})", className, searchProjectId, e.getMessage());
+                }
+            }
+
+            if (!found) {
+                notFoundDtos.add(className);
+                log.info("DTO 소스 미발견: {} (프로젝트 및 의존 라이브러리에서 찾을 수 없음)", className);
+            }
+        }
+
+        // 못 찾은 DTO에 대한 경고 추가
+        if (!notFoundDtos.isEmpty()) {
+            sb.append("\n=== 주의: 아래 DTO/클래스의 소스를 찾지 못했습니다 ===\n");
+            sb.append("LLM이 코드 컨텍스트에서 필드를 유추하여 작성하세요.\n");
+            sb.append("명세서에 해당 DTO의 필드 정보가 부정확할 수 있음을 표기하세요.\n");
+            for (String dto : notFoundDtos) {
+                sb.append("  - ").append(dto).append("\n");
+            }
+        }
+
+        return sb.toString();
+    }
+
+    private String findAndReadDtoSource(Long projectId, String branch, String className,
+                                         Map<String, String> importMap) throws Exception {
+        // import에서 패키지 경로를 알면 직접 접근
+        String fqcn = importMap.get(className);
+        if (fqcn != null) {
+            String filePath = "src/main/java/" + fqcn.replace('.', '/') + ".java";
+            try {
+                return gitLabSourceService.getFileContent(projectId, filePath, branch);
+            } catch (Exception ignored) {}
+        }
+
+        // 파일명 검색으로 폴백
+        List<String> files = gitLabSourceService.findFiles(projectId, branch, className + ".java");
+        if (!files.isEmpty()) {
+            return gitLabSourceService.getFileContent(projectId, files.get(0), branch);
+        }
+        return null;
+    }
+
+    private void collectNestedDtos(Long projectId, String branch, String dtoSource,
+                                    Map<String, String> importMap, StringBuilder sb,
+                                    Set<String> alreadyCollected, List<Long> searchProjectIds) {
+        Pattern fieldPattern = Pattern.compile("private\\s+(?:List<|Set<)?([A-Z]\\w+)(?:>)?\\s+\\w+");
+        Matcher fieldMatcher = fieldPattern.matcher(dtoSource);
+        while (fieldMatcher.find()) {
+            String nestedType = fieldMatcher.group(1);
+            if (!alreadyCollected.contains(nestedType) && !isJavaBuiltinType(nestedType)) {
+                alreadyCollected.add(nestedType);
+                for (Long searchId : searchProjectIds) {
+                    try {
+                        String searchBranch = gitLabSourceService.getDefaultBranch(searchId);
+                        String nestedSource = findAndReadDtoSource(searchId, searchBranch, nestedType, importMap);
+                        if (nestedSource != null) {
+                            sb.append("--- ").append(nestedType).append(".java ---\n");
+                            sb.append(nestedSource).append("\n\n");
+                            break;
+                        }
+                    } catch (Exception e) {
+                        log.debug("중첩 DTO 소스 조회 실패: {} (project={})", nestedType, searchId);
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean isJavaBuiltinType(String type) {
+        return Set.of(
+                "String", "Integer", "Long", "Double", "Float", "Boolean", "Byte", "Short",
+                "Object", "Void", "Map", "List", "Set", "Collection", "Optional",
+                "Date", "LocalDate", "LocalDateTime", "Instant",
+                "HttpServletRequest", "HttpServletResponse", "HttpSession",
+                "Model", "ModelAndView", "RedirectAttributes",
+                "ResponseEntity", "MultipartFile", "BindingResult",
+                "Authentication", "Principal"
+        ).contains(type);
+    }
+
     String extractMethodCode(String controllerCode, String methodName) {
         if (methodName == null || methodName.isBlank()) {
             return controllerCode;

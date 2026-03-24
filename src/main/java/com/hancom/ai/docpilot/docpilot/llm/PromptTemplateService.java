@@ -9,7 +9,7 @@ import java.util.Map;
 @Service
 public class PromptTemplateService {
 
-    private static final int MAX_CODE_LENGTH = 8000;
+    private static final int MAX_CODE_LENGTH = 16000;
     private static final String TRUNCATION_SUFFIX = "\n...(이하 생략)";
 
     private static final Map<String, String> TEMPLATES = Map.ofEntries(
@@ -93,6 +93,9 @@ public class PromptTemplateService {
                     - Response Example은 예상이 어려우면 비워두어도 됩니다
                     - Request URL 형식: [HTTP메서드] {domain}/전체/경로
                     - 클래스 레벨 @RequestMapping 경로를 prefix로 포함하여 전체 경로를 작성
+                    - DTO/Bean 소스가 제공된 경우, 해당 클래스의 모든 필드를 Request/Response 테이블에 포함하세요
+                    - "DTO 소스를 찾지 못했습니다"라는 메시지가 있는 경우, 해당 섹션 상단에 붉은색 경고를 추가하세요:
+                      <p><span style="color: #ff0000;"><strong>※ 해당 DTO의 소스를 찾지 못하여 필드 정보가 부정확할 수 있습니다.</strong></span></p>
 
                     중요: 모든 내용을 반드시 한국어로 작성하세요.
                     반드시 Confluence Storage Format(XML)으로만 응답하세요. 코드블록 마커, 설명, 마크다운은 포함하지 마세요.
@@ -121,6 +124,9 @@ public class PromptTemplateService {
                     - Response Example은 예상이 어려우면 비워두어도 됩니다
                     - Request URL 형식: [HTTP메서드] {domain}/전체/경로
                     - 클래스 레벨 @RequestMapping 경로를 prefix로 포함하여 전체 경로를 작성
+                    - DTO/Bean 소스가 제공된 경우, 해당 클래스의 모든 필드를 Request/Response 테이블에 포함하세요
+                    - "DTO 소스를 찾지 못했습니다"라는 메시지가 있는 경우, 해당 섹션 상단에 붉은색 경고를 추가하세요:
+                      <p><span style="color: #ff0000;"><strong>※ 해당 DTO의 소스를 찾지 못하여 필드 정보가 부정확할 수 있습니다.</strong></span></p>
 
                     중요: 모든 내용을 반드시 한국어로 작성하세요.
                     반드시 Confluence Storage Format(XML)으로만 응답하세요. 코드블록 마커, 설명, 마크다운은 포함하지 마세요.

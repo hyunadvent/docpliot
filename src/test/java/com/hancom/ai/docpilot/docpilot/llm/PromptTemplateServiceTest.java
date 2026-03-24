@@ -57,12 +57,12 @@ class PromptTemplateServiceTest {
     }
 
     @Test
-    void 코드가_8000자_초과시_잘라냄() {
-        String longCode = "x".repeat(10000);
+    void 코드가_16000자_초과시_잘라냄() {
+        String longCode = "x".repeat(20000);
         String prompt = promptTemplateService.getPrompt("service_overview", longCode, "MyProject");
         assertTrue(prompt.contains("...(이하 생략)"));
-        // 잘린 코드는 8000자 + 접미사
-        assertFalse(prompt.contains("x".repeat(10000)));
+        // 잘린 코드는 16000자 + 접미사
+        assertFalse(prompt.contains("x".repeat(20000)));
     }
 
     @Test

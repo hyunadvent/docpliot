@@ -11,11 +11,25 @@ public class ConfluenceStructure {
     @JsonProperty("space_key")
     private String spaceKey;
 
+    @JsonProperty("common_libraries")
+    private List<CommonLibrary> commonLibraries;
+
     private List<ProjectMapping> projects;
 
     private Branches branches;
 
     private Options options;
+
+    @Data
+    public static class CommonLibrary {
+        @JsonProperty("gitlab_project_id")
+        private Long gitlabProjectId;
+
+        @JsonProperty("gitlab_path")
+        private String gitlabPath;
+
+        private String description;
+    }
 
     @Data
     public static class ProjectMapping {
@@ -33,6 +47,9 @@ public class ConfluenceStructure {
 
         @JsonProperty("created_by")
         private String createdBy;
+
+        @JsonProperty("dependency_projects")
+        private List<Long> dependencyProjects;
 
         private List<Page> pages;
     }

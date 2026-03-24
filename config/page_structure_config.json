@@ -1,46 +1,55 @@
 {
-  "space_key": "vspBlLlkF13y",
-  "projects": [
-    {
-      "gitlab_project_id": 1372,
-      "gitlab_path": "platform-api/chatbot/ms-chatbot",
-      "confluence_parent_pages": ["프로젝트", "한컴 챗봇", "[한컴 챗봇 백엔드]"],
-      "page_title_prefix": "[한컴 챗봇 백엔드]",
-      "pages": [
-        {
-          "id": "service_overview",
-          "title": "서비스 개요 및 구성도",
-          "auto_generate": true,
-          "prompt_template": "service_overview",
-          "source_file": "README.md",
-          "trigger": ["push", "merge_request"],
-          "target_files": ["README.md"]
-        },
-        {
-          "id": "api_spec",
-          "title": "API 명세서",
-          "auto_generate": true,
-          "prompt_template": "api_spec",
-          "trigger": ["push", "merge_request"],
-          "target_files": ["**/controller/**", "**/routes/**", "**/controllers/**"]
-        },
-        {
-          "id": "db_schema",
-          "title": "DB 스키마",
-          "auto_generate": true,
-          "prompt_template": "db_schema",
-          "trigger": ["push"],
-          "target_files": ["**/models/**", "**/migrations/**", "*.sql", "**/schema.prisma"]
-        }
-      ]
-    }
-  ],
-  "branches": {
-    "trigger_branches": ["main", "develop"],
-    "ignore_branches": ["feature/*", "hotfix/*", "release/*"]
+  "projects" : [ {
+    "pages" : [ {
+      "id" : "service_overview",
+      "title" : "서비스 개요 및 구성도",
+      "description" : null,
+      "trigger" : [ "push", "merge_request" ],
+      "auto_generate" : true,
+      "prompt_template" : "service_overview",
+      "source_file" : "README.md",
+      "target_files" : [ "README.md" ],
+      "append_mode" : false
+    }, {
+      "id" : "api_spec",
+      "title" : "API 명세서",
+      "description" : null,
+      "trigger" : [ "push", "merge_request" ],
+      "auto_generate" : true,
+      "prompt_template" : "api_spec",
+      "source_file" : null,
+      "target_files" : [ "**/controller/**", "**/routes/**", "**/controllers/**" ],
+      "append_mode" : false
+    }, {
+      "id" : "db_schema",
+      "title" : "DB 스키마",
+      "description" : null,
+      "trigger" : [ "push" ],
+      "auto_generate" : true,
+      "prompt_template" : "db_schema",
+      "source_file" : null,
+      "target_files" : [ "**/models/**", "**/migrations/**", "*.sql", "**/schema.prisma" ],
+      "append_mode" : false
+    } ],
+    "gitlab_project_id" : 1372,
+    "gitlab_path" : "platform-api/chatbot/ms-chatbot",
+    "confluence_parent_pages" : [ "프로젝트", "한컴 챗봇", "[한컴 챗봇 백엔드]" ],
+    "page_title_prefix" : "[한컴 챗봇 백엔드]",
+    "created_by" : null,
+    "dependency_projects" : null
+  } ],
+  "branches" : {
+    "trigger_branches" : [ "main", "develop" ],
+    "ignore_branches" : [ "feature/*", "hotfix/*", "release/*" ]
   },
-  "options": {
-    "skip_keyword": "[skip-doc]",
-    "overwrite_manual_edits": false
-  }
+  "options" : {
+    "skip_keyword" : "[skip-doc]",
+    "overwrite_manual_edits" : false
+  },
+  "space_key" : "vspBlLlkF13y",
+  "common_libraries" : [ {
+    "description" : "어시스턴트 마이크로 서비스들의 공통 라이브러리",
+    "gitlab_project_id" : 270,
+    "gitlab_path" : "platform-api/chatbot/lib"
+  } ]
 }

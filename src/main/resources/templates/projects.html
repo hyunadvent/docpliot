@@ -38,6 +38,45 @@
         </div>
     </div>
 
+    <!-- 공통 라이브러리 -->
+    <div class="stat-card mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0"><i class="bi bi-box-seam"></i> 공통 라이브러리</h6>
+            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#libraryModal" onclick="openAddLibrary()">
+                <i class="bi bi-plus-lg"></i> 라이브러리 추가
+            </button>
+        </div>
+        <p class="text-muted mb-3" style="font-size: 13px;">
+            API 명세서 작성 시 DTO/Bean 소스를 검색할 공통 라이브러리 GitLab 저장소입니다.
+        </p>
+        <div th:if="${#lists.isEmpty(commonLibraries)}" class="text-muted text-center py-2" style="font-size: 14px;">
+            등록된 공통 라이브러리가 없습니다.
+        </div>
+        <table th:unless="${#lists.isEmpty(commonLibraries)}" class="table table-sm mb-0">
+            <thead>
+            <tr>
+                <th>프로젝트 ID</th>
+                <th>GitLab 경로</th>
+                <th>설명</th>
+                <th style="width: 80px;">관리</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="lib : ${commonLibraries}">
+                <td><code th:text="${lib.gitlabProjectId}"></code></td>
+                <td class="fw-medium" th:text="${lib.gitlabPath}"></td>
+                <td><small class="text-muted" th:text="${lib.description}"></small></td>
+                <td>
+                    <button class="btn btn-outline-danger btn-sm"
+                            th:attr="onclick='deleteLibrary(' + ${lib.gitlabProjectId} + ')'">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
     <!-- 프로젝트 추가 버튼 -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h6 class="mb-0"><i class="bi bi-list-ul"></i> 프로젝트 목록</h6>
@@ -88,6 +127,36 @@
             </tr>
             </tbody>
         </table>
+    </div>
+
+    <!-- 공통 라이브러리 추가 모달 -->
+    <div class="modal fade" id="libraryModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">공통 라이브러리 추가</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">GitLab 프로젝트 ID <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="libProjectId" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">GitLab 경로 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="libGitlabPath" placeholder="group/library-project" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">설명</label>
+                        <input type="text" class="form-control" id="libDescription" placeholder="공통 DTO 라이브러리 등">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" onclick="saveLibrary()">등록</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- 프로젝트 추가/수정 모달 -->
@@ -144,6 +213,47 @@
     </div>
 
     <script>
+        // ===== 공통 라이브러리 =====
+        function openAddLibrary() {
+            document.getElementById('libProjectId').value = '';
+            document.getElementById('libGitlabPath').value = '';
+            document.getElementById('libDescription').value = '';
+        }
+
+        function saveLibrary() {
+            const data = {
+                gitlab_project_id: parseInt(document.getElementById('libProjectId').value),
+                gitlab_path: document.getElementById('libGitlabPath').value,
+                description: document.getElementById('libDescription').value
+            };
+
+            fetch('/api/projects/common-libraries', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(r => r.json())
+            .then(result => {
+                bootstrap.Modal.getInstance(document.getElementById('libraryModal')).hide();
+                showToast('성공', result.message, true);
+                setTimeout(() => location.reload(), 1000);
+            })
+            .catch(err => showToast('오류', '등록에 실패했습니다.', false));
+        }
+
+        function deleteLibrary(projectId) {
+            if (!confirm('공통 라이브러리를 삭제하시겠습니까?')) return;
+
+            fetch('/api/projects/common-libraries/' + projectId, { method: 'DELETE' })
+                .then(r => r.json())
+                .then(result => {
+                    showToast('성공', result.message, true);
+                    setTimeout(() => location.reload(), 1000);
+                })
+                .catch(err => showToast('오류', '삭제에 실패했습니다.', false));
+        }
+
+        // ===== 프로젝트 =====
         function showToast(title, message, success) {
             document.getElementById('toastTitle').textContent = title;
             document.getElementById('toastBody').textContent = message;
