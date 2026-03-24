@@ -52,6 +52,11 @@ public class ApiSpecApiController {
         Long projectId = Long.valueOf(request.get("projectId").toString());
         String controllerPath = (String) request.get("controllerPath");
 
+        if (!processingStatusTracker.canAcceptMore()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "동시에 2개까지만 실행할 수 있습니다. 완료 후 다시 시도하세요."));
+        }
+
         ConfluenceStructure.ProjectMapping project = configLoaderService.getProjectMapping(projectId);
         if (project == null) {
             return ResponseEntity.badRequest().body(Map.of("message", "프로젝트를 찾을 수 없습니다."));

@@ -3,6 +3,7 @@ package com.hancom.ai.docpilot.docpilot.web;
 import com.hancom.ai.docpilot.docpilot.config.ConfigLoaderService;
 import com.hancom.ai.docpilot.docpilot.config.model.ConfluenceStructure;
 import com.hancom.ai.docpilot.docpilot.web.dto.ControllerSpecSummary;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,6 +18,9 @@ public class PageController {
     private final ConfigLoaderService configLoaderService;
     private final ApiSpecService apiSpecService;
     private final WebhookEventStore webhookEventStore;
+
+    @Value("${confluence.url}")
+    private String confluenceUrl;
 
     public PageController(ConfigLoaderService configLoaderService,
                           ApiSpecService apiSpecService,
@@ -74,12 +78,8 @@ public class PageController {
     }
 
     private String getConfluenceBaseUrl() {
-        // application.yml의 confluence.url에서 /wiki 이전 부분 추출
-        try {
-            return configLoaderService.getConfluenceStructure().getSpaceKey();
-        } catch (Exception e) {
-            return "";
-        }
+        // confluence.url에서 /wiki 부분까지 포함 (예: https://hancom.atlassian.net/wiki)
+        return confluenceUrl != null ? confluenceUrl : "";
     }
 
     @GetMapping("/llm")

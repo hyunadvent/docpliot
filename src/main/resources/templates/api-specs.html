@@ -97,7 +97,11 @@
                     <code th:text="${spec.controllerPath}" class="text-muted" style="font-size: 12px;"></code>
                 </td>
                 <td>
-                    <span th:if="${spec.processed}" th:text="${spec.pageTitle}"></span>
+                    <a th:if="${spec.processed}"
+                       th:href="${confluenceUrl + '/pages/viewpage.action?pageId=' + spec.pageId}"
+                       th:text="${spec.pageTitle}"
+                       target="_blank"
+                       class="text-decoration-none"></a>
                     <span th:unless="${spec.processed}" class="text-muted">-</span>
                 </td>
                 <td>
@@ -207,10 +211,18 @@
             }
         }
 
+        const MAX_CONCURRENT = 2;
+        let serverActiveCount = 0;
+
         function regenerate(controllerPath) {
+            if (serverActiveCount >= MAX_CONCURRENT) {
+                showToast('알림', '동시에 ' + MAX_CONCURRENT + '개까지만 실행할 수 있습니다. 완료 후 다시 시도하세요.', false);
+                return;
+            }
             if (!confirm('해당 Controller의 API 명세서를 (재)생성하시겠습니까?\nLLM 호출이 발생하며 시간이 소요됩니다.')) return;
 
             const projectId = document.getElementById('projectSelect').value;
+            serverActiveCount++;
 
             // 즉시 해당 행을 진행중 상태로 변경
             setRowProcessing(controllerPath);
@@ -228,8 +240,6 @@
             })
             .catch(err => {
                 showToast('오류', '재생성에 실패했습니다.', false);
-                hadProcessing = false;
-                setTimeout(() => location.reload(), 1500);
             });
         }
 
@@ -240,12 +250,12 @@
             fetch('/api/api-specs/processing')
                 .then(r => r.json())
                 .then(data => {
+                    serverActiveCount = data.count;
                     if (data.count > 0) {
                         hadProcessing = true;
                         data.processing.forEach(path => setRowProcessing(path));
                         setTimeout(pollProcessingStatus, 3000);
                     } else if (hadProcessing) {
-                        // 진행 중이던 작업이 모두 완료됨 → 자동 새로고침
                         location.reload();
                     }
                 })
