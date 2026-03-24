@@ -214,6 +214,8 @@
 
             // 즉시 해당 행을 진행중 상태로 변경
             setRowProcessing(controllerPath);
+            hadProcessing = true;
+            setTimeout(pollProcessingStatus, 3000);
 
             fetch('/api/api-specs/regenerate', {
                 method: 'POST',
@@ -223,22 +225,28 @@
             .then(r => r.json())
             .then(result => {
                 showToast('성공', result.message, true);
-                setTimeout(() => location.reload(), 1500);
             })
             .catch(err => {
                 showToast('오류', '재생성에 실패했습니다.', false);
+                hadProcessing = false;
                 setTimeout(() => location.reload(), 1500);
             });
         }
 
-        // 서버 시작 시 자동 초기화 중인 Controller 감지 (폴링)
+        // 진행 중인 Controller가 있었는지 추적
+        let hadProcessing = false;
+
         function pollProcessingStatus() {
             fetch('/api/api-specs/processing')
                 .then(r => r.json())
                 .then(data => {
                     if (data.count > 0) {
+                        hadProcessing = true;
                         data.processing.forEach(path => setRowProcessing(path));
                         setTimeout(pollProcessingStatus, 3000);
+                    } else if (hadProcessing) {
+                        // 진행 중이던 작업이 모두 완료됨 → 자동 새로고침
+                        location.reload();
                     }
                 })
                 .catch(() => {});
