@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>대시보드</title>
+</head>
+<body>
+
+<h4 layout:fragment="pageTitle">
+    <i class="bi bi-speedometer2"></i> 대시보드
+</h4>
+
+<div layout:fragment="content">
+
+    <!-- 요약 카드 -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="stat-value" th:text="${projectCount}">0</div>
+                        <div class="stat-label">등록 프로젝트</div>
+                    </div>
+                    <div class="stat-icon" style="background: #dbeafe; color: #2563eb;">
+                        <i class="bi bi-folder2-open"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="stat-value" th:text="${controllerTotal}">0</div>
+                        <div class="stat-label">전체 Controller</div>
+                    </div>
+                    <div class="stat-icon" style="background: #fef3c7; color: #d97706;">
+                        <i class="bi bi-journal-code"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="stat-value" th:text="${controllerDone}">0</div>
+                        <div class="stat-label">처리 완료</div>
+                    </div>
+                    <div class="stat-icon" style="background: #dcfce7; color: #16a34a;">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="stat-value" th:text="${controllerPending}">0</div>
+                        <div class="stat-label">미처리</div>
+                    </div>
+                    <div class="stat-icon" style="background: #fee2e2; color: #dc2626;">
+                        <i class="bi bi-hourglass-split"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 연결 상태 -->
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="stat-card">
+                <h6 class="mb-3"><i class="bi bi-plug"></i> 연결 상태</h6>
+                <div class="d-flex gap-4">
+                    <div>
+                        <span class="status-dot" th:classappend="${gitlabConnected} ? 'connected' : 'disconnected'"></span>
+                        <span>GitLab</span>
+                    </div>
+                    <div>
+                        <span class="status-dot" th:classappend="${confluenceConnected} ? 'connected' : 'disconnected'"></span>
+                        <span>Confluence</span>
+                    </div>
+                    <div>
+                        <span class="status-dot" th:classappend="${llmConfigured} ? 'connected' : 'disconnected'"></span>
+                        <span>LLM (<span th:text="${activeLlmName}">-</span>)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 프로젝트 목록 -->
+    <div class="table-card">
+        <div class="p-3 border-bottom">
+            <h6 class="mb-0"><i class="bi bi-list-ul"></i> 프로젝트 현황</h6>
+        </div>
+        <table class="table table-hover">
+            <thead>
+            <tr>
+                <th>프로젝트</th>
+                <th>GitLab 경로</th>
+                <th>Confluence 위치</th>
+                <th>Controller</th>
+                <th>상태</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="project : ${projects}">
+                <td>
+                    <span th:text="${project.pageTitlePrefix} ?: project.gitlabPath" class="fw-medium"></span>
+                </td>
+                <td>
+                    <code th:text="${project.gitlabPath}" class="text-muted"></code>
+                </td>
+                <td>
+                    <small th:text="${#strings.listJoin(project.confluenceParentPages, ' > ')}" class="text-muted"></small>
+                </td>
+                <td>
+                    <span th:text="${project.controllerTotal}" class="fw-medium">-</span>
+                    <small class="text-muted">
+                        (<span th:text="${project.controllerDone}">0</span> 완료)
+                    </small>
+                </td>
+                <td>
+                    <span th:if="${project.controllerTotal == project.controllerDone}" class="badge badge-done">완료</span>
+                    <span th:if="${project.controllerTotal != project.controllerDone}" class="badge badge-pending">진행중</span>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(projects)}">
+                <td colspan="5" class="text-center text-muted py-4">등록된 프로젝트가 없습니다.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+</body>
+</html>

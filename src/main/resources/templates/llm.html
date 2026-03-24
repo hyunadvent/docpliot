@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head><title>LLM 설정</title></head>
+<body>
+
+<h4 layout:fragment="pageTitle"><i class="bi bi-cpu"></i> LLM 설정</h4>
+
+<div layout:fragment="content">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0"><i class="bi bi-list-ul"></i> LLM 프로바이더 목록</h6>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#llmModal" onclick="openAddLlm()">
+            <i class="bi bi-plus-lg"></i> 프로바이더 추가
+        </button>
+    </div>
+
+    <!-- LLM 카드 목록 -->
+    <div class="row g-3">
+        <div class="col-md-6" th:each="llm : ${llms}">
+            <div class="stat-card" th:classappend="${llm.active} ? ' border-start border-3 border-primary' : ''">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5 class="mb-1">
+                            <span th:text="${llm.name}" class="text-capitalize"></span>
+                            <span th:if="${llm.active}" class="badge bg-primary ms-2" style="font-size: 11px;">활성</span>
+                        </h5>
+                        <p class="text-muted mb-2" style="font-size: 14px;">
+                            모델: <code th:text="${llm.model}"></code>
+                        </p>
+                        <p class="mb-0" style="font-size: 13px;">
+                            API Key: <code th:text="${#strings.length(llm.apiKey) > 8
+                                ? #strings.substring(llm.apiKey, 0, 4) + '***' + #strings.substring(llm.apiKey, #strings.length(llm.apiKey) - 4)
+                                : '***'}"></code>
+                        </p>
+                    </div>
+                    <div class="d-flex gap-1">
+                        <button th:unless="${llm.active}" class="btn btn-outline-primary btn-sm"
+                                th:attr="onclick='activateLlm(\'' + ${llm.name} + '\')'" title="활성화">
+                            <i class="bi bi-power"></i>
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm"
+                                th:attr="onclick='openEditLlm(\'' + ${llm.name} + '\', \'' + ${llm.model} + '\', ' + ${llm.active} + ')'"
+                                title="수정">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button th:unless="${llm.active}" class="btn btn-outline-danger btn-sm"
+                                th:attr="onclick='deleteLlm(\'' + ${llm.name} + '\')'" title="삭제">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div th:if="${#lists.isEmpty(llms)}" class="col-12">
+            <div class="stat-card text-center py-4 text-muted">
+                등록된 LLM 프로바이더가 없습니다.
+            </div>
+        </div>
+    </div>
+
+    <div class="stat-card mt-4">
+        <h6><i class="bi bi-info-circle"></i> 안내</h6>
+        <ul class="mb-0" style="font-size: 14px;">
+            <li>반드시 <strong>1개</strong>의 프로바이더만 활성 상태여야 합니다.</li>
+            <li>지원 프로바이더: <code>openai</code> (GPT-4o 등), <code>claude</code> (Claude 모델)</li>
+            <li>활성 프로바이더를 변경하면 즉시 반영됩니다.</li>
+        </ul>
+    </div>
+
+    <!-- 추가/수정 모달 -->
+    <div class="modal fade" id="llmModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="llmModalTitle">프로바이더 추가</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="llmEditMode" value="add">
+                    <input type="hidden" id="llmOriginalName">
+                    <div class="mb-3">
+                        <label class="form-label">프로바이더 이름 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="llmName">
+                            <option value="openai">openai</option>
+                            <option value="claude">claude</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">모델 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="llmModel" placeholder="gpt-4o / claude-sonnet-4-20250514">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">API Key <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" id="llmApiKey" placeholder="sk-... / sk-ant-...">
+                        <small class="text-muted" id="llmApiKeyHint" style="display:none;">비워두면 기존 키가 유지됩니다.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" onclick="saveLlm()">저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 토스트 -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999">
+        <div id="toast" class="toast" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto" id="toastTitle">알림</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toastBody"></div>
+        </div>
+    </div>
+
+    <script>
+        function showToast(title, message, success) {
+            document.getElementById('toastTitle').textContent = title;
+            document.getElementById('toastBody').textContent = message;
+            const toastEl = document.getElementById('toast');
+            toastEl.classList.remove('text-bg-success', 'text-bg-danger');
+            toastEl.classList.add(success ? 'text-bg-success' : 'text-bg-danger');
+            new bootstrap.Toast(toastEl).show();
+        }
+
+        function openAddLlm() {
+            document.getElementById('llmEditMode').value = 'add';
+            document.getElementById('llmModalTitle').textContent = '프로바이더 추가';
+            document.getElementById('llmName').value = 'openai';
+            document.getElementById('llmName').disabled = false;
+            document.getElementById('llmModel').value = '';
+            document.getElementById('llmApiKey').value = '';
+            document.getElementById('llmApiKeyHint').style.display = 'none';
+        }
+
+        function openEditLlm(name, model, active) {
+            document.getElementById('llmEditMode').value = 'edit';
+            document.getElementById('llmOriginalName').value = name;
+            document.getElementById('llmModalTitle').textContent = '프로바이더 수정';
+            document.getElementById('llmName').value = name;
+            document.getElementById('llmName').disabled = true;
+            document.getElementById('llmModel').value = model;
+            document.getElementById('llmApiKey').value = '';
+            document.getElementById('llmApiKeyHint').style.display = 'block';
+            new bootstrap.Modal(document.getElementById('llmModal')).show();
+        }
+
+        function saveLlm() {
+            const mode = document.getElementById('llmEditMode').value;
+            const data = {
+                name: document.getElementById('llmName').value,
+                model: document.getElementById('llmModel').value,
+                api_key: document.getElementById('llmApiKey').value || '***',
+                active: false
+            };
+
+            const url = mode === 'add' ? '/api/llm' : '/api/llm/' + document.getElementById('llmOriginalName').value;
+            const method = mode === 'add' ? 'POST' : 'PUT';
+
+            fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(r => r.json())
+            .then(result => {
+                bootstrap.Modal.getInstance(document.getElementById('llmModal')).hide();
+                showToast('성공', result.message, true);
+                setTimeout(() => location.reload(), 1000);
+            })
+            .catch(err => showToast('오류', '저장에 실패했습니다.', false));
+        }
+
+        function activateLlm(name) {
+            if (!confirm(name + ' 프로바이더를 활성화하시겠습니까?')) return;
+
+            fetch('/api/llm/' + name + '/activate', { method: 'PUT' })
+                .then(r => r.json())
+                .then(result => {
+                    showToast('성공', result.message, true);
+                    setTimeout(() => location.reload(), 1000);
+                })
+                .catch(err => showToast('오류', '활성화에 실패했습니다.', false));
+        }
+
+        function deleteLlm(name) {
+            if (!confirm(name + ' 프로바이더를 삭제하시겠습니까?')) return;
+
+            fetch('/api/llm/' + name, { method: 'DELETE' })
+                .then(r => r.json())
+                .then(result => {
+                    showToast('성공', result.message, true);
+                    setTimeout(() => location.reload(), 1000);
+                })
+                .catch(err => showToast('오류', '삭제에 실패했습니다.', false));
+        }
+    </script>
+
+</div>
+
+</body>
+</html>

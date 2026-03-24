@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head><title>API 명세서 현황</title></head>
+<body>
+
+<h4 layout:fragment="pageTitle"><i class="bi bi-journal-code"></i> API 명세서 현황</h4>
+
+<div layout:fragment="content">
+
+    <!-- 프로젝트 선택 + 요약 -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="stat-card">
+                <h6 class="mb-2"><i class="bi bi-folder2-open"></i> 프로젝트 선택</h6>
+                <select class="form-select" id="projectSelect" onchange="changeProject()">
+                    <option th:each="p : ${projects}"
+                            th:value="${p.gitlabProjectId}"
+                            th:text="${p.pageTitlePrefix != null ? p.pageTitlePrefix + ' (' + p.gitlabPath + ')' : p.gitlabPath}"
+                            th:selected="${p.gitlabProjectId == selectedProjectId}">
+                    </option>
+                </select>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="stat-value">
+                            <span th:text="${processedCount}">0</span>
+                            <small class="text-muted fs-6">/ <span th:text="${totalCount}">0</span></small>
+                        </div>
+                        <div class="stat-label">Controller 처리 완료</div>
+                    </div>
+                    <div class="stat-icon" style="background: #dcfce7; color: #16a34a;">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="stat-value" th:text="${totalCount - processedCount}">0</div>
+                        <div class="stat-label">미처리</div>
+                    </div>
+                    <div class="stat-icon" style="background: #fee2e2; color: #dc2626;">
+                        <i class="bi bi-hourglass-split"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 진행률 바 -->
+    <div class="stat-card mb-4" th:if="${totalCount > 0}">
+        <div class="d-flex justify-content-between mb-1">
+            <small class="text-muted">처리 진행률</small>
+            <small class="fw-medium"
+                   th:text="${totalCount > 0 ? (processedCount * 100 / totalCount) + '%' : '0%'}"></small>
+        </div>
+        <div class="progress" style="height: 8px;">
+            <div class="progress-bar bg-success" role="progressbar"
+                 th:style="'width: ' + (${totalCount > 0 ? (processedCount * 100 / totalCount) : 0}) + '%'"></div>
+        </div>
+    </div>
+
+    <!-- Controller 목록 -->
+    <div class="table-card">
+        <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="bi bi-list-ul"></i> Controller 목록</h6>
+        </div>
+        <table class="table table-hover mb-0">
+            <thead>
+            <tr>
+                <th>상태</th>
+                <th>Controller</th>
+                <th>파일 경로</th>
+                <th>Confluence 페이지</th>
+                <th>API 수</th>
+                <th style="width: 100px;">관리</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="spec : ${controllerSpecs}"
+                th:id="'row-' + ${#strings.replace(spec.controllerPath, '/', '_')}">
+                <td>
+                    <span th:id="'status-' + ${#strings.replace(spec.controllerPath, '/', '_')}">
+                        <span th:if="${spec.processed}" class="badge badge-done">완료</span>
+                        <span th:unless="${spec.processed}" class="badge badge-pending">미처리</span>
+                    </span>
+                </td>
+                <td class="fw-medium" th:text="${spec.controllerName}"></td>
+                <td>
+                    <code th:text="${spec.controllerPath}" class="text-muted" style="font-size: 12px;"></code>
+                </td>
+                <td>
+                    <span th:if="${spec.processed}" th:text="${spec.pageTitle}"></span>
+                    <span th:unless="${spec.processed}" class="text-muted">-</span>
+                </td>
+                <td>
+                    <span th:if="${spec.processed}">
+                        <span class="badge bg-primary" th:text="${spec.apiCount} + '개'"></span>
+                    </span>
+                    <span th:unless="${spec.processed}" class="text-muted">-</span>
+                </td>
+                <td th:id="'action-' + ${#strings.replace(spec.controllerPath, '/', '_')}">
+                    <span th:if="${spec.processed}">
+                        <button class="btn btn-outline-warning btn-sm"
+                                th:attr="onclick='regenerate(\'' + ${spec.controllerPath} + '\')'"
+                                title="재생성">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                        <button class="btn btn-outline-info btn-sm"
+                                th:attr="onclick='toggleApis(\'' + ${spec.controllerPath} + '\')'"
+                                title="API 목록 보기">
+                            <i class="bi bi-chevron-down"></i>
+                        </button>
+                    </span>
+                    <span th:unless="${spec.processed}">
+                        <button class="btn btn-outline-warning btn-sm"
+                                th:attr="onclick='regenerate(\'' + ${spec.controllerPath} + '\')'"
+                                title="생성">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </span>
+                </td>
+            </tr>
+
+            <!-- API 하위 목록 (접기/펼치기) -->
+            <tr th:each="spec : ${controllerSpecs}" th:if="${spec.processed}"
+                th:id="'apis-' + ${#strings.replace(spec.controllerPath, '/', '_')}"
+                class="api-detail-row" style="display: none;">
+                <td></td>
+                <td colspan="5">
+                    <div class="ps-3">
+                        <small class="text-muted mb-2 d-block">하위 API 페이지</small>
+                        <div th:each="api : ${spec.apiPages}" class="d-flex align-items-center mb-1">
+                            <i class="bi bi-file-earmark-text text-primary me-2"></i>
+                            <span th:text="${api.title}" style="font-size: 13px;"></span>
+                        </div>
+                        <div th:if="${#lists.isEmpty(spec.apiPages)}" class="text-muted">
+                            <small>하위 API 페이지가 없습니다.</small>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+
+            <tr th:if="${#lists.isEmpty(controllerSpecs)}">
+                <td colspan="6" class="text-center text-muted py-4">Controller가 없습니다.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 알림 토스트 -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999">
+        <div id="toast" class="toast" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto" id="toastTitle">알림</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toastBody"></div>
+        </div>
+    </div>
+
+    <!-- 로딩 오버레이 -->
+    <div id="loadingOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+         background:rgba(0,0,0,0.3); z-index:9998; justify-content:center; align-items:center;">
+        <div class="text-center text-white">
+            <div class="spinner-border mb-3" role="status"></div>
+            <p>API 명세서를 생성 중입니다...</p>
+        </div>
+    </div>
+
+    <script>
+        function changeProject() {
+            const projectId = document.getElementById('projectSelect').value;
+            window.location.href = '/api-specs?projectId=' + projectId;
+        }
+
+        function toggleApis(controllerPath) {
+            const rowId = 'apis-' + controllerPath.replaceAll('/', '_');
+            const row = document.getElementById(rowId);
+            if (row) {
+                row.style.display = row.style.display === 'none' ? '' : 'none';
+            }
+        }
+
+        function getRowId(controllerPath) {
+            return controllerPath.replaceAll('/', '_');
+        }
+
+        function setRowProcessing(controllerPath) {
+            const rowId = getRowId(controllerPath);
+            const statusEl = document.getElementById('status-' + rowId);
+            const actionEl = document.getElementById('action-' + rowId);
+            if (statusEl) {
+                statusEl.innerHTML = '<span class="badge" style="background:#dbeafe;color:#2563eb;">' +
+                    '<span class="spinner-border spinner-border-sm me-1" style="width:12px;height:12px;"></span>진행중</span>';
+            }
+            if (actionEl) {
+                actionEl.innerHTML = '<button class="btn btn-outline-secondary btn-sm" disabled>' +
+                    '<span class="spinner-border spinner-border-sm" style="width:14px;height:14px;"></span></button>';
+            }
+        }
+
+        function regenerate(controllerPath) {
+            if (!confirm('해당 Controller의 API 명세서를 (재)생성하시겠습니까?\nLLM 호출이 발생하며 시간이 소요됩니다.')) return;
+
+            const projectId = document.getElementById('projectSelect').value;
+
+            // 즉시 해당 행을 진행중 상태로 변경
+            setRowProcessing(controllerPath);
+
+            fetch('/api/api-specs/regenerate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectId: parseInt(projectId), controllerPath: controllerPath })
+            })
+            .then(r => r.json())
+            .then(result => {
+                showToast('성공', result.message, true);
+                setTimeout(() => location.reload(), 1500);
+            })
+            .catch(err => {
+                showToast('오류', '재생성에 실패했습니다.', false);
+                setTimeout(() => location.reload(), 1500);
+            });
+        }
+
+        // 서버 시작 시 자동 초기화 중인 Controller 감지 (폴링)
+        function pollProcessingStatus() {
+            fetch('/api/api-specs/processing')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.count > 0) {
+                        data.processing.forEach(path => setRowProcessing(path));
+                        setTimeout(pollProcessingStatus, 3000);
+                    }
+                })
+                .catch(() => {});
+        }
+
+        // 페이지 로드 시 진행 중인 작업 확인
+        pollProcessingStatus();
+
+        function showToast(title, message, success) {
+            document.getElementById('toastTitle').textContent = title;
+            document.getElementById('toastBody').textContent = message;
+            const toastEl = document.getElementById('toast');
+            toastEl.classList.remove('text-bg-success', 'text-bg-danger');
+            toastEl.classList.add(success ? 'text-bg-success' : 'text-bg-danger');
+            new bootstrap.Toast(toastEl).show();
+        }
+    </script>
+
+</div>
+
+</body>
+</html>

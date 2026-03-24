@@ -1,0 +1,10 @@
+{
+  "llms": [
+    {
+      "name": "openai",
+      "api_key": "sk-test-key",
+      "model": "gpt-4o",
+      "active": false
+    }
+  ]
+}

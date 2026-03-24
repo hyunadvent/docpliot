@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title layout:title-pattern="$CONTENT_TITLE - DocPilot">DocPilot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link th:href="@{/css/style.css}" rel="stylesheet">
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="d-flex">
+    <nav id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <h5><i class="bi bi-file-earmark-text"></i> DocPilot</h5>
+        </div>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link" th:classappend="${menu == 'dashboard'} ? 'active'" th:href="@{/}">
+                    <i class="bi bi-speedometer2"></i> 대시보드
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:classappend="${menu == 'projects'} ? 'active'" th:href="@{/projects}">
+                    <i class="bi bi-folder2-open"></i> 프로젝트 관리
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:classappend="${menu == 'api-specs'} ? 'active'" th:href="@{/api-specs}">
+                    <i class="bi bi-journal-code"></i> API 명세서 현황
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:classappend="${menu == 'llm'} ? 'active'" th:href="@{/llm}">
+                    <i class="bi bi-cpu"></i> LLM 설정
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:classappend="${menu == 'webhook-logs'} ? 'active'" th:href="@{/webhook-logs}">
+                    <i class="bi bi-clock-history"></i> Webhook 이력
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" th:classappend="${menu == 'settings'} ? 'active'" th:href="@{/settings}">
+                    <i class="bi bi-gear"></i> 시스템 설정
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="content-header">
+            <h4 layout:fragment="pageTitle">페이지 제목</h4>
+        </div>
+        <div class="content-body" layout:fragment="content">
+            <!-- 각 페이지 콘텐츠가 여기에 삽입됩니다 -->
+        </div>
+    </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

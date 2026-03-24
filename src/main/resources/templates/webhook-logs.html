@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head><title>Webhook 이력</title></head>
+<body>
+
+<h4 layout:fragment="pageTitle"><i class="bi bi-clock-history"></i> Webhook 이력</h4>
+
+<div layout:fragment="content">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0">
+            <i class="bi bi-list-ul"></i> 최근 이벤트
+            <small class="text-muted" th:text="'(' + ${#lists.size(events)} + '건)'"></small>
+        </h6>
+        <small class="text-muted">서버 재시작 시 이력이 초기화됩니다 (인메모리)</small>
+    </div>
+
+    <div class="table-card">
+        <table class="table table-hover mb-0">
+            <thead>
+            <tr>
+                <th style="width: 160px;">시간</th>
+                <th>이벤트</th>
+                <th>프로젝트</th>
+                <th>브랜치</th>
+                <th>파일 수</th>
+                <th>상태</th>
+                <th>메시지</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="event : ${events}">
+                <td>
+                    <small th:text="${#temporals.format(event.timestamp, 'yyyy-MM-dd HH:mm:ss')}"></small>
+                </td>
+                <td>
+                    <span class="badge bg-dark" th:text="${event.eventType}"></span>
+                </td>
+                <td class="fw-medium" th:text="${event.projectName}"></td>
+                <td><code th:text="${event.branch}"></code></td>
+                <td th:text="${event.fileCount}"></td>
+                <td>
+                    <span th:if="${event.status == 'SUCCESS'}" class="badge badge-done">성공</span>
+                    <span th:if="${event.status == 'SKIP'}" class="badge badge-pending">스킵</span>
+                    <span th:if="${event.status == 'ERROR'}" class="badge badge-error">오류</span>
+                </td>
+                <td>
+                    <small class="text-muted" th:text="${event.message}"></small>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(events)}">
+                <td colspan="7" class="text-center text-muted py-4">
+                    <i class="bi bi-inbox" style="font-size: 24px;"></i>
+                    <p class="mt-2 mb-0">아직 수신된 Webhook 이벤트가 없습니다.</p>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+</body>
+</html>

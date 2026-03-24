@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head><title>프로젝트 관리</title></head>
+<body>
+
+<h4 layout:fragment="pageTitle"><i class="bi bi-folder2-open"></i> 프로젝트 관리</h4>
+
+<div layout:fragment="content">
+
+    <!-- Space Key & 브랜치 설정 -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <h6 class="mb-2"><i class="bi bi-cloud"></i> Confluence Space</h6>
+                <code th:text="${spaceKey}" class="fs-6">-</code>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <h6 class="mb-2"><i class="bi bi-signpost-split"></i> 트리거 브랜치</h6>
+                <span th:each="b : ${branches.triggerBranches}">
+                    <span class="badge bg-primary" th:text="${b}"></span>
+                </span>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <h6 class="mb-2"><i class="bi bi-skip-forward"></i> 무시 브랜치</h6>
+                <span th:each="b : ${branches.ignoreBranches}">
+                    <span class="badge bg-secondary" th:text="${b}"></span>
+                </span>
+                <div class="mt-2">
+                    <small class="text-muted">Skip 키워드: <code th:text="${options.skipKeyword}">-</code></small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 프로젝트 추가 버튼 -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0"><i class="bi bi-list-ul"></i> 프로젝트 목록</h6>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#projectModal" onclick="openAddModal()">
+            <i class="bi bi-plus-lg"></i> 프로젝트 추가
+        </button>
+    </div>
+
+    <!-- 프로젝트 목록 -->
+    <div class="table-card">
+        <table class="table table-hover mb-0">
+            <thead>
+            <tr>
+                <th>프로젝트 ID</th>
+                <th>GitLab 경로</th>
+                <th>페이지 접두사</th>
+                <th>Confluence 위치</th>
+                <th>페이지 설정</th>
+                <th style="width: 120px;">관리</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="project : ${projects}">
+                <td><code th:text="${project.gitlabProjectId}"></code></td>
+                <td class="fw-medium" th:text="${project.gitlabPath}"></td>
+                <td>
+                    <span class="badge bg-info" th:text="${project.pageTitlePrefix}" th:if="${project.pageTitlePrefix}"></span>
+                </td>
+                <td>
+                    <small th:text="${#strings.listJoin(project.confluenceParentPages, ' > ')}" class="text-muted"></small>
+                </td>
+                <td>
+                    <span class="badge bg-secondary" th:text="${#lists.size(project.pages)} + '개'"></span>
+                </td>
+                <td>
+                    <button class="btn btn-outline-primary btn-sm"
+                            th:attr="onclick='openEditModal(' + ${project.gitlabProjectId} + ')'">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm"
+                            th:attr="onclick='deleteProject(' + ${project.gitlabProjectId} + ')'">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(projects)}">
+                <td colspan="6" class="text-center text-muted py-4">등록된 프로젝트가 없습니다.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 프로젝트 추가/수정 모달 -->
+    <div class="modal fade" id="projectModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">프로젝트 추가</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="projectForm">
+                        <input type="hidden" id="editMode" value="add">
+                        <input type="hidden" id="originalProjectId">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">GitLab 프로젝트 ID <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="gitlabProjectId" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">GitLab 경로 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="gitlabPath" placeholder="group/project" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">페이지 제목 접두사</label>
+                                <input type="text" class="form-control" id="pageTitlePrefix" placeholder="[프로젝트명]">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Confluence 부모 페이지 경로 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="confluenceParentPages"
+                                       placeholder="프로젝트 > 하위폴더 > 페이지" required>
+                                <small class="text-muted">' > '로 구분하여 계층 경로를 입력</small>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" onclick="saveProject()">저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 알림 토스트 -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999">
+        <div id="toast" class="toast" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto" id="toastTitle">알림</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toastBody"></div>
+        </div>
+    </div>
+
+    <script>
+        function showToast(title, message, success) {
+            document.getElementById('toastTitle').textContent = title;
+            document.getElementById('toastBody').textContent = message;
+            const toastEl = document.getElementById('toast');
+            toastEl.classList.remove('text-bg-success', 'text-bg-danger');
+            toastEl.classList.add(success ? 'text-bg-success' : 'text-bg-danger');
+            new bootstrap.Toast(toastEl).show();
+        }
+
+        function openAddModal() {
+            document.getElementById('editMode').value = 'add';
+            document.getElementById('modalTitle').textContent = '프로젝트 추가';
+            document.getElementById('gitlabProjectId').value = '';
+            document.getElementById('gitlabProjectId').disabled = false;
+            document.getElementById('gitlabPath').value = '';
+            document.getElementById('pageTitlePrefix').value = '';
+            document.getElementById('confluenceParentPages').value = '';
+        }
+
+        function openEditModal(projectId) {
+            fetch('/api/projects/' + projectId)
+                .then(r => r.json())
+                .then(project => {
+                    document.getElementById('editMode').value = 'edit';
+                    document.getElementById('originalProjectId').value = projectId;
+                    document.getElementById('modalTitle').textContent = '프로젝트 수정';
+                    document.getElementById('gitlabProjectId').value = project.gitlab_project_id;
+                    document.getElementById('gitlabProjectId').disabled = true;
+                    document.getElementById('gitlabPath').value = project.gitlab_path;
+                    document.getElementById('pageTitlePrefix').value = project.page_title_prefix || '';
+                    document.getElementById('confluenceParentPages').value =
+                        (project.confluence_parent_pages || []).join(' > ');
+                    new bootstrap.Modal(document.getElementById('projectModal')).show();
+                });
+        }
+
+        function saveProject() {
+            const mode = document.getElementById('editMode').value;
+            const data = {
+                gitlab_project_id: parseInt(document.getElementById('gitlabProjectId').value),
+                gitlab_path: document.getElementById('gitlabPath').value,
+                page_title_prefix: document.getElementById('pageTitlePrefix').value,
+                confluence_parent_pages: document.getElementById('confluenceParentPages').value
+                    .split(' > ').map(s => s.trim()).filter(s => s)
+            };
+
+            const url = mode === 'add' ? '/api/projects' : '/api/projects/' + document.getElementById('originalProjectId').value;
+            const method = mode === 'add' ? 'POST' : 'PUT';
+
+            fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(r => r.json())
+            .then(result => {
+                bootstrap.Modal.getInstance(document.getElementById('projectModal')).hide();
+                showToast('성공', result.message, true);
+                setTimeout(() => location.reload(), 1000);
+            })
+            .catch(err => showToast('오류', '저장에 실패했습니다.', false));
+        }
+
+        function deleteProject(projectId) {
+            if (!confirm('정말 삭제하시겠습니까?')) return;
+
+            fetch('/api/projects/' + projectId, { method: 'DELETE' })
+                .then(r => r.json())
+                .then(result => {
+                    showToast('성공', result.message, true);
+                    setTimeout(() => location.reload(), 1000);
+                })
+                .catch(err => showToast('오류', '삭제에 실패했습니다.', false));
+        }
+    </script>
+
+</div>
+
+</body>
+</html>

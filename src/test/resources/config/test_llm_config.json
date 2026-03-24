@@ -1,0 +1,16 @@
+{
+  "llms": [
+    {
+      "name": "claude",
+      "api_key": "sk-ant-test-key",
+      "model": "claude-sonnet-4-5-20250514",
+      "active": true
+    },
+    {
+      "name": "openai",
+      "api_key": "sk-test-key",
+      "model": "gpt-4o",
+      "active": false
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head><title>시스템 설정</title></head>
+<body>
+
+<h4 layout:fragment="pageTitle"><i class="bi bi-gear"></i> 시스템 설정</h4>
+
+<div layout:fragment="content">
+
+    <!-- Webhook URL -->
+    <div class="stat-card mb-4">
+        <h6 class="mb-3"><i class="bi bi-link-45deg"></i> Webhook URL</h6>
+        <p class="text-muted mb-2" style="font-size: 14px;">아래 URL을 GitLab 프로젝트의 Settings > Webhooks에 등록하세요.</p>
+        <div class="input-group">
+            <input type="text" class="form-control" id="webhookUrl" th:value="${webhookUrl}" readonly>
+            <button class="btn btn-outline-primary" onclick="copyWebhookUrl()" title="복사">
+                <i class="bi bi-clipboard"></i>
+            </button>
+        </div>
+        <small class="text-muted mt-1 d-block">Trigger: Push events, Merge request events</small>
+    </div>
+
+    <!-- 연결 정보 -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="stat-card">
+                <h6 class="mb-3"><i class="bi bi-git"></i> GitLab</h6>
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <td class="text-muted" style="width: 120px;">URL</td>
+                        <td><code th:text="${gitlabUrl}"></code></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="stat-card">
+                <h6 class="mb-3"><i class="bi bi-journal-text"></i> Confluence</h6>
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <td class="text-muted" style="width: 120px;">URL</td>
+                        <td><code th:text="${confluenceUrl}"></code></td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Space Key</td>
+                        <td><code th:text="${spaceKey}"></code></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- API 명세서 설정 -->
+    <div class="stat-card mb-4">
+        <h6 class="mb-3"><i class="bi bi-sliders"></i> API 명세서 설정</h6>
+        <table class="table table-sm mb-0">
+            <tr>
+                <td class="text-muted" style="width: 200px;">서식 템플릿 페이지</td>
+                <td>
+                    <span th:if="${!#strings.isEmpty(templatePageTitle)}" th:text="${templatePageTitle}"></span>
+                    <span th:if="${#strings.isEmpty(templatePageTitle)}" class="text-muted">미설정 (기본 프롬프트 사용)</span>
+                </td>
+            </tr>
+            <tr>
+                <td class="text-muted">Controller 처리 제한</td>
+                <td>
+                    <span th:if="${maxControllers == 0}">제한 없음 (전체)</span>
+                    <span th:unless="${maxControllers == 0}" th:text="${maxControllers} + '개'"></span>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="stat-card">
+        <h6><i class="bi bi-info-circle"></i> 설정 변경 안내</h6>
+        <ul class="mb-0" style="font-size: 14px;">
+            <li>GitLab/Confluence 연결 정보는 <code>application.yml</code> 파일에서 변경합니다.</li>
+            <li>API 명세서 설정은 <code>application.yml</code>의 <code>api-spec</code> 섹션에서 변경합니다.</li>
+            <li>설정 변경 후 서버를 재시작해야 반영됩니다.</li>
+        </ul>
+    </div>
+
+    <script>
+        function copyWebhookUrl() {
+            const input = document.getElementById('webhookUrl');
+            input.select();
+            navigator.clipboard.writeText(input.value).then(() => {
+                const btn = input.nextElementSibling;
+                btn.innerHTML = '<i class="bi bi-check"></i>';
+                setTimeout(() => { btn.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 2000);
+            });
+        }
+    </script>
+
+</div>
+
+</body>
+</html>

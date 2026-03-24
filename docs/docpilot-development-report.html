@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>DocPilot 개발기</title>
+<style>
+  @page { margin: 20mm; size: A4; }
+  body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; line-height: 1.8; color: #222; max-width: 800px; margin: 0 auto; padding: 40px 20px; }
+  h1 { text-align: center; font-size: 28px; border-bottom: 3px solid #2c3e50; padding-bottom: 15px; margin-bottom: 10px; }
+  .subtitle { text-align: center; color: #666; font-size: 14px; margin-bottom: 40px; }
+  h2 { font-size: 20px; color: #2c3e50; border-left: 4px solid #3498db; padding-left: 12px; margin-top: 35px; }
+  h3 { font-size: 16px; color: #34495e; margin-top: 25px; }
+  p { text-align: justify; margin: 8px 0; }
+  code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: 'Consolas', monospace; font-size: 13px; }
+  pre { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 15px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 14px; }
+  th { background: #2c3e50; color: white; padding: 10px 12px; text-align: left; }
+  td { border: 1px solid #ddd; padding: 8px 12px; }
+  tr:nth-child(even) { background: #f9f9f9; }
+  .toc { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 20px 30px; margin: 20px 0 30px; }
+  .toc h3 { margin-top: 0; }
+  .toc ol { margin: 0; padding-left: 20px; }
+  .toc li { margin: 5px 0; }
+  .toc a { text-decoration: none; color: #2c3e50; }
+  .diagram { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 15px; text-align: center; font-family: 'Consolas', monospace; white-space: pre; line-height: 1.4; }
+  .highlight { background: #fff3cd; padding: 12px 15px; border-left: 4px solid #ffc107; border-radius: 4px; margin: 15px 0; }
+  .page-break { page-break-before: always; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 12px; font-weight: bold; color: white; }
+  .badge-done { background: #27ae60; }
+  .badge-partial { background: #f39c12; }
+  .badge-future { background: #95a5a6; }
+</style>
+</head>
+<body>
+
+<h1>DocPilot 개발기</h1>
+<p class="subtitle">문서 자동화 에이전트 서버 — 설계부터 구현까지<br>2026년 3월</p>
+
+<div class="toc">
+<h3>목차</h3>
+<ol>
+  <li><a href="#ch1">프로젝트 개요</a></li>
+  <li><a href="#ch2">아키텍처 설계</a></li>
+  <li><a href="#ch3">핵심 모듈 구현</a></li>
+  <li><a href="#ch4">API 명세서 자동 생성</a></li>
+  <li><a href="#ch5">서식 템플릿 시스템</a></li>
+  <li><a href="#ch6">중복 방지 메커니즘</a></li>
+  <li><a href="#ch7">Webhook 기반 실시간 업데이트</a></li>
+  <li><a href="#ch8">설정 및 운영</a></li>
+  <li><a href="#ch9">개선 과정과 회고</a></li>
+</ol>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="ch1">1. 프로젝트 개요</h2>
+
+<h3>1.1 배경</h3>
+<p>
+소프트웨어 프로젝트에서 문서화는 항상 뒤처지기 마련입니다. 코드는 매일 변경되지만, API 명세서나 서비스 개요 문서는 최초 작성 이후 업데이트가 소홀해지는 경우가 많습니다. DocPilot은 이 문제를 해결하기 위해 탄생한 <strong>문서 자동화 에이전트 서버</strong>입니다.
+</p>
+
+<h3>1.2 목표</h3>
+<p>
+GitLab의 소스 코드 변경을 감지하여, LLM(Large Language Model)이 코드를 분석하고, Confluence에 문서를 자동으로 생성·업데이트하는 end-to-end 파이프라인을 구축하는 것이 핵심 목표입니다.
+</p>
+
+<h3>1.3 기술 스택</h3>
+<table>
+  <tr><th>구분</th><th>기술</th><th>용도</th></tr>
+  <tr><td>언어/프레임워크</td><td>Java 17 / Spring Boot 3.5.x</td><td>서버 애플리케이션</td></tr>
+  <tr><td>빌드</td><td>Maven (Wrapper)</td><td>의존성 관리 및 빌드</td></tr>
+  <tr><td>HTTP 클라이언트</td><td>Spring WebFlux (WebClient)</td><td>LLM API, Confluence REST API 비동기 호출</td></tr>
+  <tr><td>GitLab 연동</td><td>gitlab4j-api 6.x</td><td>코드 조회, 파일 검색, 커밋 정보</td></tr>
+  <tr><td>LLM</td><td>OpenAI (GPT-4o) / Claude</td><td>코드 분석, 문서 생성</td></tr>
+  <tr><td>문서 플랫폼</td><td>Confluence Cloud REST API</td><td>페이지 CRUD</td></tr>
+  <tr><td>테스트</td><td>JUnit 5, MockWebServer</td><td>단위/통합 테스트</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="ch2" class="page-break">2. 아키텍처 설계</h2>
+
+<h3>2.1 3단계 파이프라인</h3>
+<p>DocPilot의 핵심 아키텍처는 <strong>Source → LLM → Target</strong>의 3단계 파이프라인 구조입니다.</p>
+
+<div class="diagram">
+[ Source ]                   [ Core ]                [ Target ]
+
+ GitLab  ──┐                                ┌──▶  Confluence
+            │                                │
+ Jira    ──┼──▶  Webhook/Scheduler  ──▶  LLM  ──┼──▶  Slack (추후)
+            │                                │
+ (확장)  ──┘                                └──▶  (확장)
+</div>
+
+<p>각 단계가 독립적으로 설계되어, 새로운 소스(Jira, GitHub 등)나 출력 대상(Slack, Notion 등)을 추가할 때 기존 코드에 최소한의 영향만 미칩니다.</p>
+
+<h3>2.2 서비스 의존성 구조</h3>
+<pre><code>GitLabWebhookController
+  ├─ ConfigLoaderService (설정 조회, 브랜치 필터링)
+  └─ DocumentPipelineService (비동기 이벤트 처리)
+       ├─ GitLabSourceService (소스 코드 수집)
+       ├─ LLMRouter → ClaudeClientService / OpenAIClientService
+       ├─ PromptTemplateService (프롬프트 생성)
+       ├─ ConfluenceTargetService (페이지 CRUD)
+       └─ ApiSpecInitializationService (Controller 변경 시 API 문서 업데이트)
+
+ProjectInitializationService (@Order 1) ── 서버 시작 시 기본 페이지 초기화
+ApiSpecInitializationService (@Order 2) ── 서버 시작 시 API 명세서 초기화</code></pre>
+
+<h3>2.3 패키지 구조</h3>
+<pre><code>com.hancom.ai.docpilot.docpilot
+├── config/          # 설정 로딩, WebClient, JSON 모델
+├── llm/             # LLM 라우팅, Claude/OpenAI 클라이언트, 프롬프트 템플릿
+├── source/gitlab/   # GitLab API 연동 (파일 조회, 커밋 분석)
+├── target/confluence/ # Confluence REST API (페이지 CRUD, 속성 설정)
+└── webhook/         # Webhook 수신, 파이프라인 오케스트레이션, 초기화 서비스</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="ch3" class="page-break">3. 핵심 모듈 구현</h2>
+
+<h3>3.1 설정 관리 (ConfigLoaderService)</h3>
+<p>두 개의 JSON 설정 파일을 로드하여 런타임에 활용합니다.</p>
+<ul>
+  <li><code>config/llm_config.json</code> — LLM 프로바이더 선택. <code>active: true</code>인 항목이 정확히 1개여야 서버가 시작됩니다.</li>
+  <li><code>config/page_structure_config.json</code> — GitLab 프로젝트와 Confluence 페이지 구조의 매핑을 정의합니다. 브랜치 트리거, glob 패턴, skip 키워드 등을 지원합니다.</li>
+</ul>
+<p><code>AntPathMatcher</code>를 활용하여 변경된 파일과 target_files 패턴을 매칭하고, 어떤 문서 페이지를 업데이트할지 결정합니다.</p>
+
+<h3>3.2 LLM 라우팅 (LLMRouter)</h3>
+<p>설정 파일의 <code>active</code> 플래그에 따라 Claude 또는 OpenAI로 요청을 라우팅합니다. 두 클라이언트 서비스는 동일한 인터페이스(<code>generate(prompt, apiKey, model)</code>)를 제공하여 교체가 용이합니다.</p>
+
+<h3>3.3 프롬프트 템플릿 (PromptTemplateService)</h3>
+<p>7개의 사전 정의 프롬프트 템플릿을 관리합니다:</p>
+<table>
+  <tr><th>템플릿</th><th>용도</th></tr>
+  <tr><td><code>service_overview</code></td><td>README.md → Confluence 형식 변환</td></tr>
+  <tr><td><code>api_spec</code></td><td>코드 기반 REST API 명세서</td></tr>
+  <tr><td><code>controller_analysis</code></td><td>Controller → API 목록 JSON 추출</td></tr>
+  <tr><td><code>api_detail</code> / <code>api_detail_with_template</code></td><td>개별 API 상세 명세서</td></tr>
+  <tr><td><code>db_schema</code></td><td>DB 스키마 문서</td></tr>
+  <tr><td><code>changelog</code></td><td>변경 이력</td></tr>
+  <tr><td><code>weekly_report</code></td><td>Jira 기반 주간 보고서</td></tr>
+</table>
+<p>모든 프롬프트는 LLM에게 <strong>Confluence Storage Format(XML)</strong>으로만 응답하도록 지시합니다. 코드 내용이 8,000자를 초과하면 <code>...(이하 생략)</code>으로 잘라내어 LLM 컨텍스트 제한을 관리합니다.</p>
+
+<h3>3.4 Confluence 연동 (ConfluenceTargetService)</h3>
+<p>PAT(Bearer) 또는 Basic Auth를 자동 선택하여 인증합니다. 주요 기능:</p>
+<ul>
+  <li><strong>ensureParentPages</strong> — 스페이스 홈페이지부터 계층 경로를 탐색하며, 없는 페이지는 자동 생성</li>
+  <li><strong>upsertPageUnderParents</strong> — 계층 경로 아래에 문서를 생성 또는 업데이트 (append 모드 지원)</li>
+  <li><strong>setPageWidthNarrow</strong> — 페이지 너비를 '좁게'로 설정 (content-appearance-published 속성)</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="ch4" class="page-break">4. API 명세서 자동 생성</h2>
+
+<h3>4.1 초기화 프로세스</h3>
+<p>서버 시작 시 <code>ApiSpecInitializationService</code>가 다음 순서로 동작합니다:</p>
+<ol>
+  <li>Confluence에서 서식 템플릿 페이지 로드 (1회, 캐싱)</li>
+  <li>GitLab에서 <code>*Controller.java</code> 파일 전체 검색</li>
+  <li>기존 Controller 그룹 페이지에서 <code>&lt;!-- controller-path:xxx --&gt;</code> 식별자를 추출하여 이미 처리된 Controller 목록 수집</li>
+  <li>미처리 Controller에 대해:
+    <ul>
+      <li>LLM으로 Controller 분석 → JSON (API 목록 추출)</li>
+      <li>Controller 그룹 페이지 생성 (Controller 정보 + API 목록 테이블 + 하위 페이지 목차)</li>
+      <li>각 API 엔드포인트별: 메서드 코드 추출 → LLM으로 상세 명세서 생성 → Confluence 페이지 생성</li>
+    </ul>
+  </li>
+</ol>
+
+<h3>4.2 메서드 단위 코드 추출</h3>
+<p>Controller 전체를 LLM에 전달하면 8,000자 제한에 걸릴 수 있습니다. 이를 해결하기 위해 <code>extractMethodCode()</code>가 개별 request handler 메서드만 추출합니다:</p>
+<ol>
+  <li>클래스 레벨 <code>@RequestMapping</code> 추출 (base path 정보)</li>
+  <li>메서드명으로 해당 메서드 위치를 찾고, 위쪽으로 어노테이션/Javadoc 범위 확인</li>
+  <li>중괄호 매칭으로 메서드 끝을 판별</li>
+</ol>
+<p>이를 통해 LLM에 전달되는 코드량을 대폭 줄이고, 더 정확한 API 명세서를 생성할 수 있었습니다.</p>
+
+<h3>4.3 API 상세 명세서 구성</h3>
+<p>각 API 페이지는 다음 섹션을 포함합니다:</p>
+<table>
+  <tr><th>섹션</th><th>내용</th></tr>
+  <tr><td>개요</td><td>API의 목적과 기능 설명</td></tr>
+  <tr><td>Request URL</td><td>[HTTP메서드] {domain}/전체/경로 형식</td></tr>
+  <tr><td>Request Parameter</td><td>파라미터명, 타입, 필수여부, 설명 (테이블)</td></tr>
+  <tr><td>Request Body</td><td>요청 본문 필드 (테이블)</td></tr>
+  <tr><td>Request Example</td><td>요청 예시 (필수)</td></tr>
+  <tr><td>Response</td><td>응답 필드 (테이블)</td></tr>
+  <tr><td>Response Example</td><td>응답 예시 (예측 어려우면 생략 가능)</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="ch5" class="page-break">5. 서식 템플릿 시스템</h2>
+
+<h3>5.1 문제</h3>
+<p>LLM이 생성하는 Confluence 페이지의 서식이 매번 달랐습니다. 테이블 스타일, 섹션 순서, 페이지 너비 등이 일관되지 않아 문서 품질이 들쭉날쭉했습니다.</p>
+
+<h3>5.2 해결: 서식 예시 페이지 기반 생성</h3>
+<p>Confluence에 "API 명세서 예시"라는 서식 템플릿 페이지를 수동으로 작성하고, 서버 시작 시 해당 페이지의 <strong>Storage Format XML</strong>을 한 번 읽어 캐싱합니다.</p>
+
+<pre><code>서버 시작
+  ↓
+Confluence "API 명세서 예시" 페이지 조회 (body.storage)
+  ↓
+cachedTemplateXml에 캐싱 (1회)
+  ↓
+각 API 페이지 생성 시 프롬프트에 XML 원문 주입
+  ↓
+LLM이 동일한 서식으로 문서 생성</code></pre>
+
+<h3>5.3 Truncation 분리</h3>
+<p>초기 구현에서는 서식 템플릿 XML과 API 코드가 합쳐진 상태로 8,000자 truncation이 적용되어 서식이 잘리는 문제가 있었습니다. 이를 해결하기 위해 <code>getPromptWithTemplate()</code> 메서드를 분리하여:</p>
+<ul>
+  <li>서식 템플릿 XML → <strong>truncation 없이 온전히 보존</strong></li>
+  <li>API 코드 → 8,000자 truncation 적용</li>
+</ul>
+
+<h3>5.4 페이지 너비 강제 설정</h3>
+<p>LLM이 서식 템플릿의 너비 설정(좁게)을 완벽히 따르지 못하는 한계가 있었습니다. 이를 보완하기 위해 페이지 생성 후 Confluence REST API로 <code>content-appearance-published</code> 속성을 <code>fixed</code>(좁게)로 직접 설정합니다.</p>
+
+<!-- ============================================================ -->
+<h2 id="ch6" class="page-break">6. 중복 방지 메커니즘</h2>
+
+<h3>6.1 문제</h3>
+<p>LLM이 같은 Controller에 대해 매번 다른 한국어 이름을 생성했습니다:</p>
+<table>
+  <tr><th>실행 차수</th><th>ChatController.java</th></tr>
+  <tr><td>1차</td><td>[한컴 챗봇 백엔드] 챗봇</td></tr>
+  <tr><td>2차</td><td>[한컴 챗봇 백엔드] 챗봇관리</td></tr>
+  <tr><td>3차</td><td>[한컴 챗봇 백엔드] 챗봇대화</td></tr>
+  <tr><td>4차</td><td>[한컴 챗봇 백엔드] 챗봇채팅</td></tr>
+</table>
+<p>제목 기반 중복 체크로는 동일 Controller의 페이지가 중복 생성되는 문제를 막을 수 없었습니다.</p>
+
+<h3>6.2 해결: Controller 파일 경로 기반 식별</h3>
+<p>Controller 그룹 페이지 본문 상단에 고유 식별자를 삽입합니다:</p>
+<pre><code>&lt;!-- controller-path:src/main/java/.../ChatController.java --&gt;</code></pre>
+
+<p>서버 시작 시 기존 페이지들에서 이 식별자를 추출하여 이미 처리된 Controller Set을 구성합니다. Controller 파일 경로는 LLM 출력에 의존하지 않는 <strong>결정적(deterministic)</strong> 값이므로, 서버를 몇 번 재시작하든 동일 Controller에 대해 중복 페이지가 생성되지 않습니다.</p>
+
+<div class="highlight">
+<strong>핵심 이점:</strong> LLM 호출 전에 중복을 판별하므로, 이미 처리된 Controller에 대해서는 불필요한 LLM API 비용이 발생하지 않습니다.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="ch7" class="page-break">7. Webhook 기반 실시간 업데이트</h2>
+
+<h3>7.1 Webhook 수신 흐름</h3>
+<p><code>POST /webhook/gitlab</code> 엔드포인트가 GitLab Push/MR 이벤트를 수신합니다:</p>
+<ol>
+  <li><code>X-Gitlab-Token</code> 헤더로 인증 검증</li>
+  <li>이벤트 유형 판별 (Push Hook → "push", Merge Request Hook → "merge_request")</li>
+  <li>커밋 메시지에서 skip 키워드(<code>[skip-doc]</code>) 확인</li>
+  <li>브랜치 트리거/무시 패턴 매칭</li>
+  <li><code>@Async</code>로 비동기 파이프라인 실행 → 즉시 200 OK 반환</li>
+</ol>
+
+<h3>7.2 Controller 변경 감지</h3>
+<p><code>DocumentPipelineService</code>는 일반 페이지 처리 후 변경 파일 목록에서 Controller 파일을 감지합니다:</p>
+<pre><code>changedFiles.stream()
+    .filter(f -> f.contains("/controller/") && f.endsWith("Controller.java"))
+    .filter(f -> !f.contains("ErrorHandler") && !f.contains("CustomError"))</code></pre>
+<p>변경된 Controller가 있으면 <code>ApiSpecInitializationService.processControllerUpdate()</code>를 호출하여 해당 API 명세서 페이지를 업데이트합니다. 이때 <code>forceUpdate=true</code>로 동작하여 기존 페이지 내용이 최신 코드 기반으로 갱신됩니다.</p>
+
+<!-- ============================================================ -->
+<h2 id="ch8" class="page-break">8. 설정 및 운영</h2>
+
+<h3>8.1 주요 설정</h3>
+<table>
+  <tr><th>설정</th><th>파일</th><th>설명</th></tr>
+  <tr><td>GitLab 연결</td><td>application.yml</td><td>URL, Private Token, Webhook Secret</td></tr>
+  <tr><td>Confluence 연결</td><td>application.yml</td><td>URL, 인증 (PAT 우선, Basic Auth 폴백)</td></tr>
+  <tr><td>LLM 선택</td><td>config/llm_config.json</td><td>active: true인 프로바이더 1개</td></tr>
+  <tr><td>페이지 구조</td><td>config/page_structure_config.json</td><td>프로젝트-페이지 매핑, 브랜치 규칙</td></tr>
+  <tr><td>Controller 제한</td><td>application.yml</td><td><code>api-spec.max-controllers</code> (0=무제한)</td></tr>
+  <tr><td>서식 템플릿</td><td>application.yml</td><td><code>api-spec.template-page-title</code></td></tr>
+</table>
+
+<h3>8.2 빌드 및 실행</h3>
+<pre><code>./mvnw clean package           # JAR 빌드
+./mvnw spring-boot:run         # 개발 서버 실행 (포트 8080)
+./mvnw test                    # 전체 테스트 (58개)
+./mvnw test -Dtest=ClassName   # 단일 클래스 테스트</code></pre>
+
+<h3>8.3 서버 시작 시 동작 순서</h3>
+<ol>
+  <li>설정 로드 및 검증 (LLM active 1개 확인)</li>
+  <li>GitLab API / Confluence 클라이언트 초기화</li>
+  <li><strong>ProjectInitializationService</strong> — source_file 기반 기본 페이지 확인/생성</li>
+  <li><strong>ApiSpecInitializationService</strong> — 서식 템플릿 캐싱 → Controller 탐색 → 미처리 Controller API 명세서 생성</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="ch9" class="page-break">9. 개선 과정과 회고</h2>
+
+<h3>9.1 반복적 개선의 기록</h3>
+<table>
+  <tr><th>단계</th><th>문제</th><th>해결</th></tr>
+  <tr>
+    <td>1차</td>
+    <td>API 페이지 서식이 매번 다름</td>
+    <td>Confluence 서식 예시 페이지를 LLM 프롬프트에 주입</td>
+  </tr>
+  <tr>
+    <td>2차</td>
+    <td>서식 템플릿 XML이 8,000자 truncation에 잘림</td>
+    <td>템플릿과 코드의 truncation을 분리</td>
+  </tr>
+  <tr>
+    <td>3차</td>
+    <td>프롬프트 지시에도 페이지 너비(좁게) 미반영</td>
+    <td>Confluence REST API로 content-appearance 속성 직접 설정</td>
+  </tr>
+  <tr>
+    <td>4차</td>
+    <td>LLM이 Controller 이름을 매번 다르게 생성 → 중복 페이지</td>
+    <td>Controller 파일 경로 기반 HTML 코멘트 식별자로 중복 판별</td>
+  </tr>
+  <tr>
+    <td>5차</td>
+    <td>Controller 그룹 페이지에 내용 없음</td>
+    <td>Controller 정보 테이블 + API 목록 + children 목차 매크로 추가</td>
+  </tr>
+</table>
+
+<h3>9.2 현재 구현 상태</h3>
+<table>
+  <tr><th>기능</th><th>상태</th></tr>
+  <tr><td>GitLab Webhook 수신 (Push/MR)</td><td><span class="badge badge-done">완료</span></td></tr>
+  <tr><td>서버 시작 시 기본 페이지 초기화</td><td><span class="badge badge-done">완료</span></td></tr>
+  <tr><td>API 명세서 자동 생성 (서식 템플릿 적용)</td><td><span class="badge badge-done">완료</span></td></tr>
+  <tr><td>Controller 변경 시 API 명세서 업데이트</td><td><span class="badge badge-done">완료</span></td></tr>
+  <tr><td>중복 Controller 페이지 방지</td><td><span class="badge badge-done">완료</span></td></tr>
+  <tr><td>페이지 너비 자동 설정</td><td><span class="badge badge-done">완료</span></td></tr>
+  <tr><td>Jira 연동 (주간 보고서)</td><td><span class="badge badge-future">추후</span></td></tr>
+  <tr><td>Slack 알림</td><td><span class="badge badge-future">추후</span></td></tr>
+</table>
+
+<h3>9.3 얻은 교훈</h3>
+<ul>
+  <li><strong>LLM 출력은 비결정적이다</strong> — 동일 입력에도 다른 결과가 나옵니다. 식별자나 키값은 LLM 출력이 아닌 결정적 데이터(파일 경로, ID 등)에 의존해야 합니다.</li>
+  <li><strong>프롬프트만으로는 한계가 있다</strong> — 서식의 세밀한 부분(너비, 특정 CSS 속성)은 프롬프트로 100% 제어하기 어렵습니다. API를 통한 후처리로 보완하는 것이 실용적입니다.</li>
+  <li><strong>점진적 처리가 현실적이다</strong> — 32개 Controller를 한 번에 처리하면 60분 이상 소요됩니다. 서버 시작마다 일부씩 처리하는 점진적 접근이 운영 환경에 적합합니다.</li>
+  <li><strong>테스트가 리팩토링의 안전망이다</strong> — 58개의 기존 테스트가 있어, 구조 변경 시마다 빠르게 회귀를 확인할 수 있었습니다.</li>
+</ul>
+
+<hr style="margin-top: 50px;">
+<p style="text-align: center; color: #999; font-size: 12px;">
+DocPilot Development Report — 2026.03.23
+</p>
+
+</body>
+</html>

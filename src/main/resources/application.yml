@@ -1,0 +1,52 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: docpilot
+  datasource:
+    url: jdbc:h2:file:./data/docpilot;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+# GitLab 설정
+gitlab:
+  url: https://gitlab.hancom.io
+
+# Jira 설정 (추후 구현)
+#jira:
+#  url: https://your-jira.com
+#  username: your_jira_username
+#  api-token: your_jira_api_token
+#  project-key: YOUR_PROJECT_KEY
+#  report-day: FRIDAY
+#  report-time: "17:00"
+
+# Confluence 설정
+confluence:
+  url: https://hancom.atlassian.net/wiki
+  username: idholic@hancom.com
+
+
+# Slack 설정 (추후 구현)
+#slack:
+#  webhook-url: https://hooks.slack.com/services/your/webhook/url
+
+# 설정 파일 경로
+config:
+  llm-config-path: config/llm_config.json
+  structure-config-path: config/page_structure_config.json
+
+# API 명세서 초기화 설정
+api-spec:
+  max-controllers: 1
+  template-page-title: API 명세서 예시

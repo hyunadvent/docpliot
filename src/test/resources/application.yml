@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+gitlab:
+  url: https://gitlab.test.com
+  private-token: test-token
+  webhook-secret: test-secret
+
+confluence:
+  url: https://test.atlassian.net/wiki
+  username: test@test.com
+  password: test-password
+  pat: ""
+
+config:
+  llm-config-path: src/test/resources/config/test_llm_config.json
+  structure-config-path: src/test/resources/config/test_page_structure_config.json
+
+api-spec:
+  max-controllers: 0
+  template-page-title: ""
