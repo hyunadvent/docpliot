@@ -83,27 +83,78 @@ public class ApiSpecInitializationService {
         ConfluenceStructure structure = configLoaderService.getConfluenceStructure();
         String spaceKey = structure.getSpaceKey();
 
+        runSync(spaceKey, structure);
+
+        log.info("=== API 명세서 초기화 완료 ===");
+    }
+
+    /**
+     * DB와 Confluence 간 동기화를 실행합니다.
+     * 서버 시작 시 자동 호출되며, UI에서 수동으로도 호출 가능합니다.
+     */
+    public void runSync(String spaceKey, ConfluenceStructure structure) {
         // 서식 템플릿 페이지를 한 번 읽어서 캐싱 (UI 생성에서도 사용하므로 항상 로드)
         loadTemplateFormat(spaceKey);
 
         // DB와 Confluence 간 동기화 (삭제된 페이지 감지)
         validateDbWithConfluence(spaceKey, structure);
 
-        if (maxControllers == 0) {
-            log.info("max-controllers=0, API 명세서 자동 생성 비활성화");
-            log.info("=== API 명세서 초기화 완료 ===");
-            return;
-        }
-
+        // Confluence에 존재하지만 DB에 없는 Controller를 DB에 동기화
         for (ConfluenceStructure.ProjectMapping project : structure.getProjects()) {
             try {
-                initializeApiSpec(spaceKey, project);
+                syncProjectControllers(spaceKey, project);
             } catch (Exception e) {
-                log.error("API 명세서 초기화 실패: {}", project.getGitlabPath(), e);
+                log.debug("프로젝트 동기화 실패: {}", project.getGitlabPath(), e);
             }
         }
+    }
 
-        log.info("=== API 명세서 초기화 완료 ===");
+    /**
+     * UI에서 프로젝트 추가 시 호출. 해당 프로젝트의 API 명세서를 maxControllers만큼 생성합니다.
+     */
+    public void initializeApiSpecForProject(String spaceKey, ConfluenceStructure.ProjectMapping project, int maxCount) {
+        try {
+            // 서식 템플릿이 아직 로드되지 않았으면 로드
+            if (cachedTemplateXml == null) {
+                loadTemplateFormat(spaceKey);
+            }
+            initializeApiSpec(spaceKey, project, maxCount);
+        } catch (Exception e) {
+            log.error("프로젝트 API 명세서 초기화 실패: {}", project.getGitlabPath(), e);
+        }
+    }
+
+    /**
+     * 개별 프로젝트의 Confluence → DB 동기화
+     */
+    private void syncProjectControllers(String spaceKey, ConfluenceStructure.ProjectMapping project) throws Exception {
+        Long projectId = project.getGitlabProjectId();
+        String prefix = (project.getPageTitlePrefix() != null && !project.getPageTitlePrefix().isBlank())
+                ? project.getPageTitlePrefix() + " " : "";
+        String apiSpecTitle = prefix + "API 명세서";
+
+        Long parentId = confluenceTargetService.ensureParentPages(spaceKey, project.getConfluenceParentPages());
+        Map<String, Object> apiSpecPage = confluenceTargetService.getChildPage(parentId, apiSpecTitle);
+        if (apiSpecPage == null) return;
+
+        Long apiSpecPageId = toLong(apiSpecPage.get("id"));
+
+        String defaultBranch = gitLabSourceService.getDefaultBranch(projectId);
+        List<String> controllerFiles = gitLabSourceService.findFiles(projectId, defaultBranch, "Controller.java");
+        controllerFiles = controllerFiles.stream()
+                .filter(f -> !f.contains("ErrorHandler") && !f.contains("CustomError"))
+                .filter(f -> f.contains("/controller/"))
+                .toList();
+
+        Set<String> dbPaths = controllerPageMappingRepository.findProcessedControllerPaths(projectId);
+        Set<String> confluencePaths = getExistingControllerPaths(apiSpecPageId, controllerFiles);
+
+        // Confluence에 있지만 DB에 없는 Controller 동기화
+        Set<String> missingInDb = new HashSet<>(confluencePaths);
+        missingInDb.removeAll(dbPaths);
+        if (!missingInDb.isEmpty()) {
+            syncExistingControllersToDb(projectId, apiSpecPageId, confluencePaths, dbPaths);
+        }
     }
 
     /**
@@ -217,6 +268,10 @@ public class ApiSpecInitializationService {
     }
 
     private void initializeApiSpec(String spaceKey, ConfluenceStructure.ProjectMapping project) throws Exception {
+        initializeApiSpec(spaceKey, project, -1);
+    }
+
+    private void initializeApiSpec(String spaceKey, ConfluenceStructure.ProjectMapping project, int maxCount) throws Exception {
         String titlePrefix = project.getPageTitlePrefix();
         String prefix = (titlePrefix != null && !titlePrefix.isBlank()) ? titlePrefix + " " : "";
         String apiSpecTitle = prefix + "API 명세서";
@@ -267,9 +322,12 @@ public class ApiSpecInitializationService {
                 log.info("Controller 이미 처리됨, skip: {}", controllerPath);
                 continue;
             }
-            // maxControllers 제한 (-1이면 무제한, 양수이면 해당 수만큼)
-            if (maxControllers > 0 && processedCount >= maxControllers) {
-                log.info("Controller 처리 수 제한({}) 도달, 나머지는 다음 실행에서 처리", maxControllers);
+            // maxCount 제한 (-1이면 무제한, 양수이면 해당 수만큼, 0이면 생성 안 함)
+            if (maxCount == 0) {
+                break;
+            }
+            if (maxCount > 0 && processedCount >= maxCount) {
+                log.info("Controller 처리 수 제한({}) 도달, 나머지는 다음 실행에서 처리", maxCount);
                 break;
             }
             try {
@@ -349,10 +407,26 @@ public class ApiSpecInitializationService {
 
         if (existingPage == null) {
             // 신규 생성
-            Map<String, Object> created = confluenceTargetService.createPage(
-                    spaceKey, controllerPageTitle, controllerPageBody, apiSpecPageId);
-            controllerPageId = toLong(created.get("id"));
-            log.info("Controller 페이지 생성: {}", controllerPageTitle);
+            try {
+                Map<String, Object> created = confluenceTargetService.createPage(
+                        spaceKey, controllerPageTitle, controllerPageBody, apiSpecPageId);
+                controllerPageId = toLong(created.get("id"));
+                log.info("Controller 페이지 생성: {}", controllerPageTitle);
+            } catch (Exception e) {
+                // 동일 제목 페이지가 이미 존재 → 기존 페이지를 찾아서 업데이트
+                log.warn("Controller 페이지 생성 실패, 기존 페이지 검색: {} ({})", controllerPageTitle, e.getMessage());
+                Map<String, Object> existingByTitle = confluenceTargetService.getPage(spaceKey, controllerPageTitle);
+                if (existingByTitle != null) {
+                    controllerPageId = toLong(existingByTitle.get("id"));
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> vObj = (Map<String, Object>) existingByTitle.get("version");
+                    int ver = ((Number) vObj.get("number")).intValue();
+                    confluenceTargetService.updatePage(controllerPageId, controllerPageTitle, controllerPageBody, ver + 1);
+                    log.info("Controller 페이지 기존 업데이트: {}", controllerPageTitle);
+                } else {
+                    throw e;
+                }
+            }
         } else if (!forceUpdate) {
             log.info("Controller 페이지 이미 존재, 하위 API 처리 skip: {}", controllerPageTitle);
             return;

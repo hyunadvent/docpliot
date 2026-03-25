@@ -71,6 +71,9 @@
     <div class="table-card">
         <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
             <h6 class="mb-0"><i class="bi bi-list-ul"></i> Controller 목록</h6>
+            <button class="btn btn-outline-secondary btn-sm" id="syncBtn" onclick="syncConfluence()" title="Confluence와 DB 동기화">
+                <i class="bi bi-arrow-repeat"></i> 동기화
+            </button>
         </div>
         <table class="table table-hover mb-0">
             <thead>
@@ -180,6 +183,24 @@
     </div>
 
     <script>
+        function syncConfluence() {
+            const btn = document.getElementById('syncBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:14px;height:14px;"></span> 동기화 중...';
+
+            fetch('/api/api-specs/sync', { method: 'POST' })
+                .then(r => r.json())
+                .then(result => {
+                    showToast('성공', result.message, true);
+                    setTimeout(() => location.reload(), 1000);
+                })
+                .catch(err => {
+                    showToast('오류', '동기화에 실패했습니다.', false);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> 동기화';
+                });
+        }
+
         function changeProject() {
             const projectId = document.getElementById('projectSelect').value;
             window.location.href = '/api-specs?projectId=' + projectId;

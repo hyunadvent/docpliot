@@ -45,6 +45,23 @@ public class ApiSpecApiController {
     }
 
     /**
+     * DB와 Confluence 간 동기화를 수동으로 실행합니다.
+     */
+    @PostMapping("/sync")
+    public ResponseEntity<Map<String, String>> sync() {
+        try {
+            com.hancom.ai.docpilot.docpilot.config.model.ConfluenceStructure structure =
+                    configLoaderService.getConfluenceStructure();
+            String spaceKey = structure.getSpaceKey();
+            apiSpecInitializationService.runSync(spaceKey, structure);
+            return ResponseEntity.ok(Map.of("message", "동기화가 완료되었습니다."));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("message", "동기화 실패: " + e.getMessage()));
+        }
+    }
+
+    /**
      * 특정 Controller의 API 명세서를 재생성합니다.
      */
     @PostMapping("/regenerate")

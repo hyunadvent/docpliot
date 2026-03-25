@@ -2,8 +2,10 @@ package com.hancom.ai.docpilot.docpilot.web;
 
 import com.hancom.ai.docpilot.docpilot.config.ConfigLoaderService;
 import com.hancom.ai.docpilot.docpilot.config.model.ConfluenceStructure;
+import com.hancom.ai.docpilot.docpilot.webhook.ApiSpecInitializationService;
 import com.hancom.ai.docpilot.docpilot.webhook.ProjectInitializationService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -19,11 +21,17 @@ public class ProjectApiController {
 
     private final ConfigLoaderService configLoaderService;
     private final ProjectInitializationService projectInitializationService;
+    private final ApiSpecInitializationService apiSpecInitializationService;
+
+    @Value("${api-spec.max-controllers:0}")
+    private int maxControllers;
 
     public ProjectApiController(ConfigLoaderService configLoaderService,
-                                ProjectInitializationService projectInitializationService) {
+                                ProjectInitializationService projectInitializationService,
+                                ApiSpecInitializationService apiSpecInitializationService) {
         this.configLoaderService = configLoaderService;
         this.projectInitializationService = projectInitializationService;
+        this.apiSpecInitializationService = apiSpecInitializationService;
     }
 
     @GetMapping
@@ -65,16 +73,26 @@ public class ProjectApiController {
         configLoaderService.saveConfluenceStructure(structure);
         log.info("프로젝트 추가: id={}, path={}, createdBy={}", newProject.getGitlabProjectId(), newProject.getGitlabPath(), auth.getName());
 
-        // 서비스 개요 및 구성도 자동 생성 (비동기적으로 Confluence에 페이지 생성)
+        // 서비스 개요 및 구성도 자동 생성
+        String spaceKey = structure.getSpaceKey();
         try {
-            String spaceKey = structure.getSpaceKey();
             projectInitializationService.initializeProject(spaceKey, newProject);
             log.info("프로젝트 초기 페이지 생성 완료: {}", newProject.getGitlabPath());
         } catch (Exception e) {
             log.error("프로젝트 초기 페이지 생성 실패: {}", newProject.getGitlabPath(), e);
         }
 
-        return ResponseEntity.ok(Map.of("message", "프로젝트가 등록되고 서비스 개요 페이지가 생성되었습니다."));
+        // API 명세서 자동 생성 (max-controllers만큼)
+        if (maxControllers != 0) {
+            try {
+                apiSpecInitializationService.initializeApiSpecForProject(spaceKey, newProject, maxControllers);
+                log.info("API 명세서 초기 생성 완료: {} (max={})", newProject.getGitlabPath(), maxControllers);
+            } catch (Exception e) {
+                log.error("API 명세서 초기 생성 실패: {}", newProject.getGitlabPath(), e);
+            }
+        }
+
+        return ResponseEntity.ok(Map.of("message", "프로젝트가 등록되고 초기 페이지가 생성되었습니다."));
     }
 
     @PutMapping("/{projectId}")

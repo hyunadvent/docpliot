@@ -40,20 +40,7 @@ public class ProjectInitializationService {
     @EventListener(ApplicationReadyEvent.class)
     @Order(1)
     public void initialize() {
-        log.info("=== 프로젝트 초기화 시작 ===");
-
-        ConfluenceStructure structure = configLoaderService.getConfluenceStructure();
-        String spaceKey = structure.getSpaceKey();
-
-        for (ConfluenceStructure.ProjectMapping project : structure.getProjects()) {
-            try {
-                initializeProject(spaceKey, project);
-            } catch (Exception e) {
-                log.error("프로젝트 초기화 실패: gitlab_path={}", project.getGitlabPath(), e);
-            }
-        }
-
-        log.info("=== 프로젝트 초기화 완료 ===");
+        log.info("=== 프로젝트 초기화: 서버 시작 시 기본 페이지 자동 생성 비활성화 (UI에서 프로젝트 추가 시 생성) ===");
     }
 
     /**
