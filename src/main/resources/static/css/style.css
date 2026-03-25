@@ -1,95 +1,165 @@
-/* Sidebar */
+/* ============================================
+   DocPilot — Material Design Style
+   ============================================ */
+
+/* Google Fonts - Roboto (MUI 기본 폰트) */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
+:root {
+    /* MUI Primary (Indigo) */
+    --md-primary: #1976d2;
+    --md-primary-light: #42a5f5;
+    --md-primary-dark: #1565c0;
+    --md-primary-bg: #e3f2fd;
+    /* MUI Secondary */
+    --md-secondary: #9c27b0;
+    /* Surfaces */
+    --md-surface: #ffffff;
+    --md-background: #fafafa;
+    --md-on-surface: #1c1b1f;
+    --md-on-surface-variant: #49454f;
+    /* Elevation shadows */
+    --md-elevation-1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+    --md-elevation-2: 0 3px 6px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06);
+    --md-elevation-3: 0 6px 12px rgba(0,0,0,0.08), 0 3px 6px rgba(0,0,0,0.06);
+    --md-elevation-4: 0 10px 20px rgba(0,0,0,0.08), 0 4px 8px rgba(0,0,0,0.06);
+    /* Border */
+    --md-outline: #c4c7c5;
+    --md-outline-variant: #e0e0e0;
+    /* States */
+    --md-success: #2e7d32;
+    --md-success-bg: #e8f5e9;
+    --md-warning: #ed6c02;
+    --md-warning-bg: #fff3e0;
+    --md-error: #d32f2f;
+    --md-error-bg: #ffebee;
+    /* Radius */
+    --md-radius-sm: 8px;
+    --md-radius-md: 12px;
+    --md-radius-lg: 16px;
+    --md-radius-xl: 28px;
+}
+
+body {
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--md-background);
+    color: var(--md-on-surface);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================
+   Sidebar — Navigation Rail / Drawer style
+   ============================================ */
 .sidebar {
-    width: 240px;
+    width: 260px;
     min-height: 100vh;
-    background: #1e293b;
-    color: #e2e8f0;
+    background: linear-gradient(180deg, #1a237e 0%, #283593 100%);
+    color: #c5cae9;
     position: fixed;
     top: 0;
     left: 0;
     z-index: 100;
-    transition: all 0.3s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--md-elevation-3);
 }
 
 .sidebar-header {
-    padding: 20px;
-    border-bottom: 1px solid #334155;
+    padding: 24px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
 .sidebar-header h5 {
     margin: 0;
-    color: #f8fafc;
-    font-size: 18px;
+    color: #ffffff;
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
 }
 
 .sidebar .nav-link {
-    color: #94a3b8;
+    color: #b0bec5;
     padding: 12px 20px;
+    margin: 2px 8px;
     font-size: 14px;
-    border-left: 3px solid transparent;
-    transition: all 0.2s;
+    font-weight: 400;
+    border-radius: var(--md-radius-xl);
+    border-left: none;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    letter-spacing: 0.25px;
 }
 
 .sidebar .nav-link:hover {
-    color: #f1f5f9;
-    background: #334155;
-    border-left-color: #64748b;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
+    border-left-color: transparent;
 }
 
 .sidebar .nav-link.active {
-    color: #f8fafc;
-    background: #334155;
-    border-left-color: #3b82f6;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.16);
+    border-left-color: transparent;
     font-weight: 500;
 }
 
 .sidebar .nav-link i {
-    margin-right: 10px;
-    font-size: 16px;
+    margin-right: 12px;
+    font-size: 18px;
+    width: 24px;
+    text-align: center;
 }
 
-/* Main Content */
+/* ============================================
+   Main Content
+   ============================================ */
 .main-content {
-    margin-left: 240px;
-    width: calc(100% - 240px);
+    margin-left: 260px;
+    width: calc(100% - 260px);
     min-height: 100vh;
-    background: #f8fafc;
+    background: var(--md-background);
 }
 
 .content-header {
-    background: #ffffff;
-    padding: 16px 30px;
-    border-bottom: 1px solid #e2e8f0;
+    background: var(--md-surface);
+    padding: 20px 32px;
+    border-bottom: none;
+    box-shadow: var(--md-elevation-1);
+    position: sticky;
+    top: 0;
+    z-index: 50;
 }
 
 .content-header h4 {
     margin: 0;
-    color: #1e293b;
-    font-size: 18px;
-    font-weight: 600;
+    color: var(--md-on-surface);
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: 0.15px;
 }
 
 .content-body {
-    padding: 24px 30px;
+    padding: 24px 32px;
 }
 
-/* Cards */
+/* ============================================
+   Cards — MUI Paper style
+   ============================================ */
 .stat-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 20px;
-    transition: box-shadow 0.2s;
+    background: var(--md-surface);
+    border: none;
+    border-radius: var(--md-radius-md);
+    padding: 20px 24px;
+    box-shadow: var(--md-elevation-1);
+    transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .stat-card:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--md-elevation-2);
 }
 
 .stat-card .stat-icon {
     width: 48px;
     height: 48px;
-    border-radius: 10px;
+    border-radius: var(--md-radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -97,56 +167,89 @@
 }
 
 .stat-card .stat-value {
-    font-size: 28px;
-    font-weight: 700;
-    color: #1e293b;
+    font-size: 32px;
+    font-weight: 500;
+    color: var(--md-on-surface);
+    letter-spacing: -0.5px;
 }
 
 .stat-card .stat-label {
     font-size: 13px;
-    color: #64748b;
-    margin-top: 2px;
+    color: var(--md-on-surface-variant);
+    margin-top: 4px;
+    font-weight: 400;
+    letter-spacing: 0.4px;
 }
 
-/* Status badges */
+.stat-card h6 {
+    font-weight: 500;
+    letter-spacing: 0.15px;
+}
+
+/* ============================================
+   Badges — MUI Chip style
+   ============================================ */
 .badge-done {
-    background: #dcfce7;
-    color: #166534;
+    background: var(--md-success-bg);
+    color: var(--md-success);
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: var(--md-radius-sm);
+    font-size: 12px;
+    letter-spacing: 0.4px;
 }
 
 .badge-pending {
-    background: #fef9c3;
-    color: #854d0e;
+    background: var(--md-warning-bg);
+    color: var(--md-warning);
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: var(--md-radius-sm);
+    font-size: 12px;
+    letter-spacing: 0.4px;
 }
 
 .badge-error {
-    background: #fee2e2;
-    color: #991b1b;
+    background: var(--md-error-bg);
+    color: var(--md-error);
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: var(--md-radius-sm);
+    font-size: 12px;
+    letter-spacing: 0.4px;
 }
 
-/* Connection status */
+/* ============================================
+   Connection Status
+   ============================================ */
 .status-dot {
     width: 10px;
     height: 10px;
     border-radius: 50%;
     display: inline-block;
-    margin-right: 6px;
+    margin-right: 8px;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.8);
 }
 
 .status-dot.connected {
-    background: #22c55e;
+    background: var(--md-success);
+    box-shadow: 0 0 0 2px var(--md-success-bg);
 }
 
 .status-dot.disconnected {
-    background: #ef4444;
+    background: var(--md-error);
+    box-shadow: 0 0 0 2px var(--md-error-bg);
 }
 
-/* Table */
+/* ============================================
+   Table — MUI DataGrid style
+   ============================================ */
 .table-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    background: var(--md-surface);
+    border: none;
+    border-radius: var(--md-radius-md);
     overflow: hidden;
+    box-shadow: var(--md-elevation-1);
 }
 
 .table-card .table {
@@ -154,43 +257,397 @@
 }
 
 .table-card .table th {
-    background: #f1f5f9;
-    font-weight: 600;
+    background: var(--md-background);
+    font-weight: 500;
     font-size: 13px;
-    color: #475569;
-    border-bottom: 1px solid #e2e8f0;
+    color: var(--md-on-surface-variant);
+    border-bottom: 1px solid var(--md-outline-variant);
+    padding: 12px 16px;
+    letter-spacing: 0.4px;
+    text-transform: none;
 }
 
 .table-card .table td {
     font-size: 14px;
     vertical-align: middle;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f5f5f5;
+    color: var(--md-on-surface);
 }
 
-/* Login/Register */
+.table-card .table tbody tr:hover {
+    background: rgba(25, 118, 210, 0.04);
+}
+
+.table-card .table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ============================================
+   Buttons — MUI style
+   ============================================ */
+.btn-primary {
+    background: var(--md-primary);
+    border: none;
+    border-radius: var(--md-radius-sm);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: none;
+    padding: 8px 20px;
+    box-shadow: var(--md-elevation-1);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-primary:hover {
+    background: var(--md-primary-dark);
+    box-shadow: var(--md-elevation-2);
+}
+
+.btn-primary:active {
+    box-shadow: var(--md-elevation-3);
+}
+
+.btn-outline-primary {
+    color: var(--md-primary);
+    border: 1px solid var(--md-primary);
+    border-radius: var(--md-radius-sm);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: none;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-outline-primary:hover {
+    background: var(--md-primary-bg);
+    border-color: var(--md-primary);
+    color: var(--md-primary);
+}
+
+.btn-outline-secondary {
+    color: var(--md-on-surface-variant);
+    border: 1px solid var(--md-outline);
+    border-radius: var(--md-radius-sm);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-outline-secondary:hover {
+    background: #f5f5f5;
+    border-color: var(--md-on-surface-variant);
+    color: var(--md-on-surface);
+}
+
+.btn-outline-danger {
+    color: var(--md-error);
+    border: 1px solid var(--md-error);
+    border-radius: var(--md-radius-sm);
+    font-weight: 500;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-outline-danger:hover {
+    background: var(--md-error-bg);
+    border-color: var(--md-error);
+    color: var(--md-error);
+}
+
+.btn-outline-warning {
+    color: var(--md-warning);
+    border: 1px solid var(--md-warning);
+    border-radius: var(--md-radius-sm);
+    font-weight: 500;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-outline-warning:hover {
+    background: var(--md-warning-bg);
+    border-color: var(--md-warning);
+    color: var(--md-warning);
+}
+
+.btn-outline-success {
+    color: var(--md-success);
+    border: 1px solid var(--md-success);
+    border-radius: var(--md-radius-sm);
+    font-weight: 500;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-outline-success:hover {
+    background: var(--md-success-bg);
+    border-color: var(--md-success);
+    color: var(--md-success);
+}
+
+.btn-outline-info {
+    color: var(--md-primary);
+    border: 1px solid var(--md-outline);
+    border-radius: var(--md-radius-sm);
+    font-weight: 500;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-outline-info:hover {
+    background: var(--md-primary-bg);
+    color: var(--md-primary);
+}
+
+.btn-sm {
+    padding: 4px 12px;
+    font-size: 13px;
+    border-radius: var(--md-radius-sm);
+}
+
+/* ============================================
+   Form Controls — MUI Outlined Input style
+   ============================================ */
+.form-control, .form-select {
+    border: 1px solid var(--md-outline);
+    border-radius: var(--md-radius-sm);
+    padding: 10px 14px;
+    font-size: 14px;
+    color: var(--md-on-surface);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background: var(--md-surface);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--md-primary);
+    box-shadow: 0 0 0 2px var(--md-primary-bg);
+    outline: none;
+}
+
+.form-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--md-on-surface-variant);
+    margin-bottom: 6px;
+    letter-spacing: 0.4px;
+}
+
+/* ============================================
+   Modals — MUI Dialog style
+   ============================================ */
+.modal-content {
+    border: none;
+    border-radius: var(--md-radius-lg);
+    box-shadow: var(--md-elevation-4);
+}
+
+.modal-header {
+    border-bottom: none;
+    padding: 24px 24px 8px;
+}
+
+.modal-header .modal-title {
+    font-size: 18px;
+    font-weight: 500;
+    letter-spacing: 0.15px;
+}
+
+.modal-body {
+    padding: 16px 24px;
+}
+
+.modal-footer {
+    border-top: none;
+    padding: 8px 24px 24px;
+    gap: 8px;
+}
+
+/* ============================================
+   Alerts — MUI Alert style
+   ============================================ */
+.alert {
+    border: none;
+    border-radius: var(--md-radius-sm);
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.25px;
+    padding: 12px 16px;
+}
+
+.alert-success {
+    background: var(--md-success-bg);
+    color: var(--md-success);
+}
+
+.alert-danger {
+    background: var(--md-error-bg);
+    color: var(--md-error);
+}
+
+.alert-info {
+    background: var(--md-primary-bg);
+    color: var(--md-primary);
+}
+
+/* ============================================
+   Toast — MUI Snackbar style
+   ============================================ */
+.toast {
+    border: none;
+    border-radius: var(--md-radius-sm);
+    box-shadow: var(--md-elevation-3);
+}
+
+.toast-header {
+    border-bottom: none;
+    font-weight: 500;
+}
+
+/* ============================================
+   Progress Bar — MUI LinearProgress
+   ============================================ */
+.progress {
+    border-radius: 4px;
+    background: #e0e0e0;
+    overflow: hidden;
+}
+
+.progress-bar {
+    border-radius: 4px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.progress-bar.bg-success {
+    background: var(--md-primary) !important;
+}
+
+/* ============================================
+   Login/Register — MUI style
+   ============================================ */
 .auth-container {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #f8fafc;
+    background: linear-gradient(135deg, #e3f2fd 0%, #fafafa 50%, #f3e5f5 100%);
 }
 
 .auth-card {
     width: 100%;
     max-width: 420px;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    background: var(--md-surface);
+    border: none;
+    border-radius: var(--md-radius-lg);
     padding: 40px;
+    box-shadow: var(--md-elevation-3);
 }
 
 .auth-card h3 {
-    color: #1e293b;
-    font-weight: 700;
+    color: var(--md-on-surface);
+    font-weight: 500;
+    letter-spacing: 0.15px;
 }
 
-/* Sidebar footer */
+/* ============================================
+   Sidebar Footer
+   ============================================ */
 .sidebar-footer {
-    padding: 15px 20px;
-    border-top: 1px solid #334155;
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    background: rgba(0,0,0,0.1);
+}
+
+/* ============================================
+   Badge overrides — MUI Chip style
+   ============================================ */
+.badge.bg-primary {
+    background: var(--md-primary-bg) !important;
+    color: var(--md-primary) !important;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 16px;
+}
+
+.badge.bg-secondary {
+    background: #f5f5f5 !important;
+    color: var(--md-on-surface-variant) !important;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 16px;
+}
+
+.badge.bg-info {
+    background: #e0f7fa !important;
+    color: #00838f !important;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 16px;
+}
+
+.badge.bg-dark {
+    background: #37474f !important;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 16px;
+}
+
+/* ============================================
+   Code — MUI style
+   ============================================ */
+code {
+    background: #f5f5f5;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'Roboto Mono', 'Consolas', monospace;
+    font-size: 13px;
+    color: var(--md-primary-dark);
+}
+
+/* ============================================
+   Scrollbar — thin style
+   ============================================ */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #bdbdbd;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #9e9e9e;
+}
+
+/* ============================================
+   Misc — MUI touches
+   ============================================ */
+a {
+    color: var(--md-primary);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+a:hover {
+    color: var(--md-primary-dark);
+}
+
+.text-muted {
+    color: var(--md-on-surface-variant) !important;
+}
+
+.fw-medium {
+    font-weight: 500;
+}
+
+/* Ripple-like focus for interactive elements */
+.btn:focus-visible,
+.form-control:focus-visible,
+.nav-link:focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+}
+
+/* Smooth transitions everywhere */
+* {
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
