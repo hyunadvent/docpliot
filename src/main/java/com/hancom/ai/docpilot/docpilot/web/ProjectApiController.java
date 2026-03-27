@@ -179,6 +179,34 @@ public class ProjectApiController {
         return ResponseEntity.ok(Map.of("message", "공통 라이브러리가 등록되었습니다."));
     }
 
+    @PutMapping("/common-libraries/{projectId}")
+    public ResponseEntity<Map<String, String>> updateLibrary(@PathVariable Long projectId,
+                                                              @RequestBody ConfluenceStructure.CommonLibrary library) {
+        ConfluenceStructure structure = configLoaderService.getConfluenceStructure();
+        List<ConfluenceStructure.CommonLibrary> libs = structure.getCommonLibraries();
+        if (libs == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        libs = new ArrayList<>(libs);
+        boolean found = false;
+        for (int i = 0; i < libs.size(); i++) {
+            if (libs.get(i).getGitlabProjectId().equals(projectId)) {
+                libs.set(i, library);
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            return ResponseEntity.notFound().build();
+        }
+
+        structure.setCommonLibraries(libs);
+        configLoaderService.saveConfluenceStructure(structure);
+        return ResponseEntity.ok(Map.of("message", "공통 라이브러리가 수정되었습니다."));
+    }
+
     @DeleteMapping("/common-libraries/{projectId}")
     public ResponseEntity<Map<String, String>> deleteLibrary(@PathVariable Long projectId) {
         ConfluenceStructure structure = configLoaderService.getConfluenceStructure();

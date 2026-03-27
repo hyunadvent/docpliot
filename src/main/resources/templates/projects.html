@@ -67,6 +67,10 @@
                 <td class="fw-medium" th:text="${lib.gitlabPath}"></td>
                 <td><small class="text-muted" th:text="${lib.description}"></small></td>
                 <td>
+                    <button class="btn btn-outline-primary btn-sm"
+                            th:attr="onclick='openEditLibrary(' + ${lib.gitlabProjectId} + ')'">
+                        <i class="bi bi-pencil"></i>
+                    </button>
                     <button class="btn btn-outline-danger btn-sm"
                             th:attr="onclick='deleteLibrary(' + ${lib.gitlabProjectId} + ')'">
                         <i class="bi bi-trash"></i>
@@ -99,7 +103,8 @@
             </tr>
             </thead>
             <tbody>
-            <tr th:each="project : ${projects}">
+            <tr th:each="project : ${projects}" style="cursor: pointer;"
+                th:attr="onclick='navigateToApiSpecs(event, ' + ${project.gitlabProjectId} + ')'">
                 <td><code th:text="${project.gitlabProjectId}"></code></td>
                 <td class="fw-medium" th:text="${project.gitlabPath}"></td>
                 <td>
@@ -111,7 +116,7 @@
                 <td>
                     <span class="badge bg-secondary" th:text="${#lists.size(project.pages)} + '개'"></span>
                 </td>
-                <td>
+                <td onclick="event.stopPropagation();">
                     <button class="btn btn-outline-primary btn-sm"
                             th:attr="onclick='openEditModal(' + ${project.gitlabProjectId} + ')'">
                         <i class="bi bi-pencil"></i>
@@ -129,15 +134,17 @@
         </table>
     </div>
 
-    <!-- 공통 라이브러리 추가 모달 -->
+    <!-- 공통 라이브러리 추가/수정 모달 -->
     <div class="modal fade" id="libraryModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">공통 라이브러리 추가</h5>
+                    <h5 class="modal-title" id="libModalTitle">공통 라이브러리 추가</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <input type="hidden" id="libEditMode" value="add">
+                    <input type="hidden" id="libOriginalProjectId">
                     <div class="mb-3">
                         <label class="form-label">GitLab 프로젝트 ID <span class="text-danger">*</span></label>
                         <input type="number" class="form-control" id="libProjectId" required>
@@ -153,7 +160,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
-                    <button type="button" class="btn btn-primary" onclick="saveLibrary()">등록</button>
+                    <button type="button" class="btn btn-primary" onclick="saveLibrary()" id="libSaveBtn">등록</button>
                 </div>
             </div>
         </div>
@@ -215,20 +222,53 @@
     <script>
         // ===== 공통 라이브러리 =====
         function openAddLibrary() {
+            document.getElementById('libEditMode').value = 'add';
+            document.getElementById('libOriginalProjectId').value = '';
+            document.getElementById('libModalTitle').textContent = '공통 라이브러리 추가';
+            document.getElementById('libSaveBtn').textContent = '등록';
             document.getElementById('libProjectId').value = '';
+            document.getElementById('libProjectId').disabled = false;
             document.getElementById('libGitlabPath').value = '';
             document.getElementById('libDescription').value = '';
         }
 
+        function openEditLibrary(projectId) {
+            fetch('/api/projects/common-libraries')
+                .then(r => r.json())
+                .then(libs => {
+                    const lib = libs.find(l => l.gitlab_project_id === projectId);
+                    if (!lib) { showToast('오류', '라이브러리를 찾을 수 없습니다.', false); return; }
+
+                    document.getElementById('libEditMode').value = 'edit';
+                    document.getElementById('libOriginalProjectId').value = projectId;
+                    document.getElementById('libModalTitle').textContent = '공통 라이브러리 수정';
+                    document.getElementById('libSaveBtn').textContent = '저장';
+                    document.getElementById('libProjectId').value = lib.gitlab_project_id;
+                    document.getElementById('libProjectId').disabled = true;
+                    document.getElementById('libGitlabPath').value = lib.gitlab_path || '';
+                    document.getElementById('libDescription').value = lib.description || '';
+
+                    new bootstrap.Modal(document.getElementById('libraryModal')).show();
+                })
+                .catch(err => showToast('오류', '라이브러리 정보를 불러올 수 없습니다.', false));
+        }
+
         function saveLibrary() {
+            const mode = document.getElementById('libEditMode').value;
             const data = {
                 gitlab_project_id: parseInt(document.getElementById('libProjectId').value),
                 gitlab_path: document.getElementById('libGitlabPath').value,
                 description: document.getElementById('libDescription').value
             };
 
-            fetch('/api/projects/common-libraries', {
-                method: 'POST',
+            const isEdit = mode === 'edit';
+            const url = isEdit
+                ? '/api/projects/common-libraries/' + document.getElementById('libOriginalProjectId').value
+                : '/api/projects/common-libraries';
+            const method = isEdit ? 'PUT' : 'POST';
+
+            fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             })
@@ -238,7 +278,7 @@
                 showToast('성공', result.message, true);
                 setTimeout(() => location.reload(), 1000);
             })
-            .catch(err => showToast('오류', '등록에 실패했습니다.', false));
+            .catch(err => showToast('오류', '저장에 실패했습니다.', false));
         }
 
         function deleteLibrary(projectId) {
@@ -254,6 +294,10 @@
         }
 
         // ===== 프로젝트 =====
+        function navigateToApiSpecs(event, projectId) {
+            window.location.href = '/api-specs?projectId=' + projectId;
+        }
+
         function showToast(title, message, success) {
             document.getElementById('toastTitle').textContent = title;
             document.getElementById('toastBody').textContent = message;

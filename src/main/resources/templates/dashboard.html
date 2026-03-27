@@ -108,7 +108,7 @@
             </tr>
             </thead>
             <tbody>
-            <tr th:each="project : ${projects}">
+            <tr th:each="project : ${projects}" style="cursor: pointer;" onclick="location.href='/projects'">
                 <td>
                     <span th:text="${project.pageTitlePrefix} ?: project.gitlabPath" class="fw-medium"></span>
                 </td>

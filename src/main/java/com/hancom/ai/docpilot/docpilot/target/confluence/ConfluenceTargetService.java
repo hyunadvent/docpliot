@@ -8,7 +8,9 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -77,16 +79,8 @@ public class ConfluenceTargetService {
     @SuppressWarnings("unchecked")
     public Map<String, Object> getChildPage(Long parentId, String title) {
         try {
-            Map<String, Object> response = webClient.get()
-                    .uri("/{parentId}/child/page?expand=version,body.storage", parentId)
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
-
-            List<Map<String, Object>> results = (List<Map<String, Object>>) response.get("results");
-            if (results == null) return null;
-
-            return results.stream()
+            List<Map<String, Object>> allResults = fetchAllChildPages(parentId, "version,body.storage");
+            return allResults.stream()
                     .filter(page -> title.equals(page.get("title")))
                     .findFirst()
                     .orElse(null);
@@ -102,11 +96,10 @@ public class ConfluenceTargetService {
     @SuppressWarnings("unchecked")
     public Map<String, Object> getChildPagesFull(Long parentId) {
         try {
-            return webClient.get()
-                    .uri("/{parentId}/child/page?expand=version,body.storage&limit=25", parentId)
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
+            List<Map<String, Object>> allResults = fetchAllChildPages(parentId, "version,body.storage");
+            Map<String, Object> response = new HashMap<>();
+            response.put("results", allResults);
+            return response;
         } catch (WebClientResponseException e) {
             log.error("자식 페이지 전체 조회 실패: parentId={}, status={}", parentId, e.getStatusCode(), e);
             throw e;
@@ -114,10 +107,61 @@ public class ConfluenceTargetService {
     }
 
     /**
+     * 페이지네이션을 처리하여 모든 자식 페이지를 조회합니다.
+     */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> fetchAllChildPages(Long parentId, String expand) {
+        List<Map<String, Object>> allResults = new ArrayList<>();
+        int start = 0;
+        int limit = 25;
+
+        while (true) {
+            int currentStart = start;
+            Map<String, Object> response = webClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/{parentId}/child/page")
+                            .queryParam("expand", expand)
+                            .queryParam("start", currentStart)
+                            .queryParam("limit", limit)
+                            .build(parentId))
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+
+            List<Map<String, Object>> results = (List<Map<String, Object>>) response.get("results");
+            if (results == null || results.isEmpty()) break;
+
+            allResults.addAll(results);
+
+            // 페이지네이션: size가 limit보다 작으면 마지막 페이지
+            Number size = (Number) response.get("size");
+            if (size == null || size.intValue() < limit) break;
+
+            start += limit;
+        }
+
+        return allResults;
+    }
+
+    /**
      * 페이지를 신규 생성하고 생성된 페이지를 반환합니다.
+     * 같은 스페이스에 동일 제목의 페이지가 이미 존재하면 해당 페이지를 업데이트합니다.
      */
     @SuppressWarnings("unchecked")
     public Map<String, Object> createPage(String spaceKey, String title, String body, Long parentId) {
+        // 먼저 동일 제목의 페이지가 이미 존재하는지 확인
+        Map<String, Object> existing = getPage(spaceKey, title);
+        if (existing != null) {
+            Long pageId = toLong(existing.get("id"));
+            Map<String, Object> versionObj = (Map<String, Object>) existing.get("version");
+            int currentVersion = ((Number) versionObj.get("number")).intValue();
+            int nextVersion = currentVersion + 1;
+
+            log.info("동일 제목의 페이지가 이미 존재하여 업데이트합니다: space={}, title={}, id={}", spaceKey, title, pageId);
+            updatePage(pageId, title, body, nextVersion);
+            return existing;
+        }
+
         Map<String, Object> requestBody = buildCreateBody(spaceKey, title, body, parentId);
 
         try {

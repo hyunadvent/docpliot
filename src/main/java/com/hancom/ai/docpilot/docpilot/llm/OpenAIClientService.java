@@ -46,7 +46,23 @@ public class OpenAIClientService {
 
     @SuppressWarnings("unchecked")
     private String extractText(Map<String, Object> response) {
+        if (response == null) {
+            log.error("OpenAI API 응답이 null입니다.");
+            return null;
+        }
+
+        if (response.containsKey("error")) {
+            Map<String, Object> error = (Map<String, Object>) response.get("error");
+            String errorMsg = error != null ? String.valueOf(error.get("message")) : "unknown";
+            log.error("OpenAI API 에러 응답: {}", errorMsg);
+            throw new RuntimeException("OpenAI API 에러: " + errorMsg);
+        }
+
         List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
+        if (choices == null || choices.isEmpty()) {
+            log.error("OpenAI API 응답에 choices가 없습니다: {}", response);
+            return null;
+        }
         Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
         return (String) message.get("content");
     }

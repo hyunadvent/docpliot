@@ -48,7 +48,24 @@ public class ClaudeClientService {
 
     @SuppressWarnings("unchecked")
     private String extractText(Map<String, Object> response) {
+        if (response == null) {
+            log.error("Claude API 응답이 null입니다.");
+            return null;
+        }
+
+        // 에러 응답 처리
+        if (response.containsKey("error")) {
+            Map<String, Object> error = (Map<String, Object>) response.get("error");
+            String errorMsg = error != null ? String.valueOf(error.get("message")) : "unknown";
+            log.error("Claude API 에러 응답: {}", errorMsg);
+            throw new RuntimeException("Claude API 에러: " + errorMsg);
+        }
+
         List<Map<String, Object>> content = (List<Map<String, Object>>) response.get("content");
+        if (content == null || content.isEmpty()) {
+            log.error("Claude API 응답에 content가 없습니다: {}", response);
+            return null;
+        }
         return (String) content.get(0).get("text");
     }
 }
