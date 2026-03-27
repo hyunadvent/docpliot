@@ -45,3 +45,4 @@ hs_err_pid*.log
 
 ### Server logs ###
 server.log
+/src/main/resources/application_backup.yml
