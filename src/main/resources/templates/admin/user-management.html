@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head><title>사용자 관리</title></head>
+<body>
+
+<h4 layout:fragment="pageTitle"><i class="bi bi-people"></i> 사용자 관리</h4>
+
+<div layout:fragment="content">
+
+    <div th:if="${success}" class="alert alert-success alert-dismissible fade show" role="alert">
+        <span th:text="${success}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div class="table-card">
+        <div class="p-3 border-bottom">
+            <h6 class="mb-0"><i class="bi bi-list-ul"></i> 사용자 목록</h6>
+        </div>
+        <table class="table table-hover mb-0">
+            <thead>
+            <tr>
+                <th>아이디</th>
+                <th>이름</th>
+                <th>이메일</th>
+                <th>권한</th>
+                <th>상태</th>
+                <th>가입일</th>
+                <th style="width: 150px;">관리</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="user : ${users}">
+                <td class="fw-medium" th:text="${user.username}"></td>
+                <td th:text="${user.name}"></td>
+                <td><small class="text-muted" th:text="${user.email}"></small></td>
+                <td>
+                    <span th:if="${user.role == 'ROLE_ADMIN'}" class="badge bg-primary">관리자</span>
+                    <span th:unless="${user.role == 'ROLE_ADMIN'}" class="badge bg-secondary">사용자</span>
+                </td>
+                <td>
+                    <span th:if="${user.approved}" class="badge badge-done">승인</span>
+                    <span th:unless="${user.approved}" class="badge badge-pending">대기</span>
+                </td>
+                <td>
+                    <small th:text="${#temporals.format(user.createdAt, 'yyyy-MM-dd HH:mm')}"></small>
+                </td>
+                <td>
+                    <!-- 승인 버튼 (미승인 사용자만) -->
+                    <form th:unless="${user.approved}" th:action="@{/admin/users/{id}/approve(id=${user.id})}"
+                          method="post" style="display: inline;">
+                        <button type="submit" class="btn btn-outline-success btn-sm" title="승인">
+                            <i class="bi bi-check-lg"></i> 승인
+                        </button>
+                    </form>
+
+                    <!-- 삭제 버튼 (admin 본인은 제외) -->
+                    <button th:unless="${user.username == 'admin'}"
+                            class="btn btn-outline-danger btn-sm"
+                            th:attr="onclick='confirmDelete(' + ${user.id} + ', \'' + ${user.username} + '\')'"
+                            title="삭제">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 삭제 확인 모달 -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title">사용자 삭제</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong id="deleteUsername"></strong> 사용자를 정말 삭제하시겠습니까?</p>
+                    <p class="text-muted" style="font-size: 13px;">이 작업은 되돌릴 수 없습니다.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">취소</button>
+                    <form id="deleteForm" method="post" style="display: inline;">
+                        <button type="submit" class="btn btn-danger btn-sm">삭제</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function confirmDelete(userId, username) {
+            document.getElementById('deleteUsername').textContent = username;
+            document.getElementById('deleteForm').action = '/admin/users/' + userId + '/delete';
+            new bootstrap.Modal(document.getElementById('deleteModal')).show();
+        }
+    </script>
+
+</div>
+
+</body>
+</html>
