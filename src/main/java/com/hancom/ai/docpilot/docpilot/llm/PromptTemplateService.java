@@ -21,14 +21,14 @@ public class PromptTemplateService {
                     변환 규칙:
                     - 마크다운 헤더(#, ##, ###)를 <h1>, <h2>, <h3> 태그로 변환
                     - 마크다운 리스트(-, *)를 <ul><li> 태그로 변환
-                    - 마크다운 코드블록(```)을 <ac:structured-macro ac:name="code"> 매크로로 변환
+                    - 마크다운 코드블록을 <ac:structured-macro ac:name="code"> 매크로로 변환
                     - 마크다운 테이블을 <table> 태그로 변환
                     - 마크다운 링크를 <a> 태그로 변환
                     - 마크다운 굵은 글씨(**)를 <strong> 태그로 변환
                     - 원본 내용을 그대로 유지하되, 형식만 Confluence XML로 변환
 
                     중요: 내용을 수정하거나 요약하지 마세요. 원본 README.md의 내용을 있는 그대로 변환만 하세요.
-                    반드시 Confluence Storage Format(XML)으로만 응답하세요. ```xml 같은 코드블록 마커, 설명, 마크다운은 포함하지 마세요.
+                    반드시 Confluence Storage Format(XML)으로만 응답하세요. 코드블록 마커(예: xml), 설명, 마크다운은 포함하지 마세요.
 
                     README.md 내용:
                     %s
@@ -45,7 +45,7 @@ public class PromptTemplateService {
                     - 테이블 형식으로 정리
 
                     중요: 모든 내용을 반드시 한국어로 작성하세요. URL 경로, HTTP 메서드, 파라미터명을 제외한 모든 설명은 한국어여야 합니다.
-                    반드시 Confluence Storage Format(XML)으로만 응답하세요. ```xml 같은 코드블록 마커, 설명, 마크다운은 포함하지 마세요.
+                    반드시 Confluence Storage Format(XML)으로만 응답하세요. 코드블록 마커(예: xml), 설명, 마크다운은 포함하지 마세요.
 
                     코드:
                     %s
@@ -149,7 +149,7 @@ public class PromptTemplateService {
                     - 테이블 형식으로 정리
 
                     중요: 모든 내용을 반드시 한국어로 작성하세요. 테이블명, 컬럼명 등 기술 식별자를 제외한 모든 설명은 한국어여야 합니다.
-                    반드시 Confluence Storage Format(XML)으로만 응답하세요. ```xml 같은 코드블록 마커, 설명, 마크다운은 포함하지 마세요.
+                    반드시 Confluence Storage Format(XML)으로만 응답하세요. 코드블록 마커(예: xml), 설명, 마크다운은 포함하지 마세요.
 
                     코드:
                     %s
@@ -165,7 +165,7 @@ public class PromptTemplateService {
                     - 테이블 형식으로 정리
 
                     중요: 모든 내용을 반드시 한국어로 작성하세요.
-                    반드시 Confluence Storage Format(XML)으로만 응답하세요. ```xml 같은 코드블록 마커, 설명, 마크다운은 포함하지 마세요.
+                    반드시 Confluence Storage Format(XML)으로만 응답하세요. 코드블록 마커(예: xml), 설명, 마크다운은 포함하지 마세요.
 
                     변경 내역:
                     %s
@@ -182,7 +182,7 @@ public class PromptTemplateService {
                     - 이슈/리스크 사항
 
                     중요: 모든 내용을 반드시 한국어로 작성하세요.
-                    반드시 Confluence Storage Format(XML)으로만 응답하세요. ```xml 같은 코드블록 마커, 설명, 마크다운은 포함하지 마세요.
+                    반드시 Confluence Storage Format(XML)으로만 응답하세요. 코드블록 마커(예: xml), 설명, 마크다운은 포함하지 마세요.
 
                     이슈 목록:
                     %s

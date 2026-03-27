@@ -1148,22 +1148,47 @@ public class ApiSpecInitializationService {
         for (String className : dtoClassNames) {
             boolean found = false;
 
-            for (Long searchProjectId : searchProjectIds) {
-                try {
-                    String branch = gitLabSourceService.getDefaultBranch(searchProjectId);
-                    String dtoSource = findAndReadDtoSource(searchProjectId, branch, className, importMap);
-                    if (dtoSource != null) {
-                        sb.append("--- ").append(className).append(".java ---\n");
-                        sb.append(dtoSource).append("\n\n");
-                        collectNestedDtos(searchProjectId, branch, dtoSource, importMap, sb,
-                                dtoClassNames, searchProjectIds);
-                        found = true;
-                        break;
+            // 1단계: import 경로가 있으면 모든 프로젝트에서 import 경로로 먼저 검색
+            String fqcn = importMap.get(className);
+            if (fqcn != null) {
+                String filePath = "src/main/java/" + fqcn.replace('.', '/') + ".java";
+                for (Long searchProjectId : searchProjectIds) {
+                    try {
+                        String branch = gitLabSourceService.getDefaultBranch(searchProjectId);
+                        String dtoSource = gitLabSourceService.getFileContent(searchProjectId, filePath, branch);
+                        if (dtoSource != null) {
+                            sb.append("--- ").append(className).append(".java ---\n");
+                            sb.append(dtoSource).append("\n\n");
+                            collectNestedDtos(searchProjectId, branch, dtoSource, importMap, sb,
+                                    dtoClassNames, searchProjectIds);
+                            found = true;
+                            break;
+                        }
+                    } catch (Exception e) {
+                        log.debug("DTO import 경로 조회 실패: {} (project={}, {})", className, searchProjectId, e.getMessage());
                     }
-                } catch (Exception e) {
-                    log.debug("DTO 소스 조회 실패: {} (project={}, {})", className, searchProjectId, e.getMessage());
                 }
             }
+
+            // 2단계: import 경로로 못 찾으면 파일명 검색으로 폴백 (성능 이슈로 비활성화)
+            // if (!found) {
+            //     for (Long searchProjectId : searchProjectIds) {
+            //         try {
+            //             String branch = gitLabSourceService.getDefaultBranch(searchProjectId);
+            //             String dtoSource = findDtoByFileName(searchProjectId, branch, className);
+            //             if (dtoSource != null) {
+            //                 sb.append("--- ").append(className).append(".java ---\n");
+            //                 sb.append(dtoSource).append("\n\n");
+            //                 collectNestedDtos(searchProjectId, branch, dtoSource, importMap, sb,
+            //                         dtoClassNames, searchProjectIds);
+            //                 found = true;
+            //                 break;
+            //             }
+            //         } catch (Exception e) {
+            //             log.debug("DTO 파일명 검색 실패: {} (project={}, {})", className, searchProjectId, e.getMessage());
+            //         }
+            //     }
+            // }
 
             if (!found) {
                 notFoundDtos.add(className);
@@ -1195,7 +1220,10 @@ public class ApiSpecInitializationService {
             } catch (Exception ignored) {}
         }
 
-        // 파일명 검색으로 폴백
+        return findDtoByFileName(projectId, branch, className);
+    }
+
+    private String findDtoByFileName(Long projectId, String branch, String className) throws Exception {
         List<String> files = gitLabSourceService.findFiles(projectId, branch, className + ".java");
         if (!files.isEmpty()) {
             return gitLabSourceService.getFileContent(projectId, files.get(0), branch);
