@@ -103,7 +103,7 @@
             </tr>
             </thead>
             <tbody>
-            <tr th:each="project : ${projects}" style="cursor: pointer;"
+            <tr th:each="project, iterStat : ${projects}" style="cursor: pointer;"
                 th:attr="onclick='navigateToApiSpecs(event, ' + ${project.gitlabProjectId} + ')'">
                 <td><code th:text="${project.gitlabProjectId}"></code></td>
                 <td class="fw-medium" th:text="${project.gitlabPath}"></td>
@@ -118,11 +118,18 @@
                 </td>
                 <td onclick="event.stopPropagation();">
                     <button class="btn btn-outline-primary btn-sm"
+                            th:if="${project.gitlabProjectId != null}"
                             th:attr="onclick='openEditModal(' + ${project.gitlabProjectId} + ')'">
                         <i class="bi bi-pencil"></i>
                     </button>
                     <button class="btn btn-outline-danger btn-sm"
+                            th:if="${project.gitlabProjectId != null}"
                             th:attr="onclick='deleteProject(' + ${project.gitlabProjectId} + ')'">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm"
+                            th:if="${project.gitlabProjectId == null}"
+                            th:attr="onclick='deleteProjectByIndex(' + ${iterStat.index} + ')'">
                         <i class="bi bi-trash"></i>
                     </button>
                 </td>
@@ -335,6 +342,9 @@
         }
 
         function saveProject() {
+            const form = document.getElementById('projectForm');
+            if (!form.reportValidity()) return;
+
             const mode = document.getElementById('editMode').value;
             const data = {
                 gitlab_project_id: parseInt(document.getElementById('gitlabProjectId').value),
@@ -354,7 +364,7 @@
             })
             .then(r => r.json())
             .then(result => {
-                bootstrap.Modal.getInstance(document.getElementById('projectModal')).hide();
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('projectModal')).hide();
                 showToast('성공', result.message, true);
                 setTimeout(() => location.reload(), 1000);
             })
@@ -365,6 +375,18 @@
             if (!confirm('정말 삭제하시겠습니까?')) return;
 
             fetch('/api/projects/' + projectId, { method: 'DELETE' })
+                .then(r => r.json())
+                .then(result => {
+                    showToast('성공', result.message, true);
+                    setTimeout(() => location.reload(), 1000);
+                })
+                .catch(err => showToast('오류', '삭제에 실패했습니다.', false));
+        }
+
+        function deleteProjectByIndex(index) {
+            if (!confirm('정말 삭제하시겠습니까?')) return;
+
+            fetch('/api/projects/by-index/' + index, { method: 'DELETE' })
                 .then(r => r.json())
                 .then(result => {
                     showToast('성공', result.message, true);

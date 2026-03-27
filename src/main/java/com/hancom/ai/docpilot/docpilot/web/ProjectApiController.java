@@ -134,7 +134,7 @@ public class ProjectApiController {
 
         List<ConfluenceStructure.ProjectMapping> projects = new ArrayList<>(structure.getProjects());
         ConfluenceStructure.ProjectMapping target = projects.stream()
-                .filter(p -> p.getGitlabProjectId().equals(projectId))
+                .filter(p -> p.getGitlabProjectId() != null && p.getGitlabProjectId().equals(projectId))
                 .findFirst().orElse(null);
 
         if (target == null) {
@@ -145,6 +145,26 @@ public class ProjectApiController {
         }
 
         projects.remove(target);
+        structure.setProjects(projects);
+        configLoaderService.saveConfluenceStructure(structure);
+        return ResponseEntity.ok(Map.of("message", "프로젝트가 삭제되었습니다."));
+    }
+
+    @DeleteMapping("/by-index/{index}")
+    public ResponseEntity<Map<String, String>> deleteByIndex(@PathVariable int index, Authentication auth) {
+        ConfluenceStructure structure = configLoaderService.getConfluenceStructure();
+        List<ConfluenceStructure.ProjectMapping> projects = new ArrayList<>(structure.getProjects());
+
+        if (index < 0 || index >= projects.size()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        ConfluenceStructure.ProjectMapping target = projects.get(index);
+        if (!canAccess(auth, target)) {
+            return ResponseEntity.status(403).body(Map.of("message", "권한이 없습니다."));
+        }
+
+        projects.remove(index);
         structure.setProjects(projects);
         configLoaderService.saveConfluenceStructure(structure);
         return ResponseEntity.ok(Map.of("message", "프로젝트가 삭제되었습니다."));
