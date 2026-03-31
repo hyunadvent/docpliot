@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>DocPilot 발표자료</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:#d0d0d0;padding:32px 0;}
+
+.slide{
+  width:960px;height:540px;margin:24px auto;
+  background:#fff;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;
+  page-break-after:always;
+}
+
+/* ── HANCOM Logo ── */
+.hc-logo{
+  position:absolute;top:22px;right:28px;
+  font-size:17px;font-weight:700;letter-spacing:2px;color:#1a1a1a;
+  z-index:10;
+}
+.hc-logo span{color:#E85A1A;}
+
+/* ── Orange accent line ── */
+.orange-rule{width:100%;height:4px;background:#E85A1A;flex-shrink:0;}
+.orange-rule-thin{width:100%;height:2px;background:#E85A1A;flex-shrink:0;}
+
+/* ── Slide number ── */
+.snum{position:absolute;bottom:12px;right:20px;font-size:11px;color:#aaa;font-weight:400;}
+
+/* =========== COVER SLIDE =========== */
+.slide.cover{background:#111;color:#fff;}
+.cover .orange-block{
+  position:absolute;top:0;right:0;
+  width:160px;height:160px;background:#E85A1A;
+}
+.cover .inner{
+  position:relative;z-index:2;
+  padding:0 72px;
+  flex:1;display:flex;flex-direction:column;justify-content:center;
+}
+.cover h1{font-size:62px;font-weight:900;letter-spacing:-2px;color:#fff;line-height:1;}
+.cover .bar{width:56px;height:4px;background:#E85A1A;margin:20px 0;}
+.cover .sub{font-size:17px;font-weight:300;color:#bbb;line-height:1.7;max-width:500px;}
+.cover .meta{margin-top:36px;font-size:13px;color:#666;letter-spacing:1px;}
+.cover .hc-logo{color:#fff;}
+.cover .hc-logo span{color:#E85A1A;}
+
+/* =========== SECTION SLIDE =========== */
+.slide.sec{background:#1a1a1a;color:#fff;}
+.sec .inner{padding:0 72px;flex:1;display:flex;flex-direction:column;justify-content:center;}
+.sec h2{font-size:44px;font-weight:700;color:#fff;}
+.sec .bar{width:48px;height:4px;background:#E85A1A;margin:16px 0;}
+.sec .desc{font-size:17px;font-weight:300;color:#888;}
+.sec .hc-logo{color:#fff;}
+
+/* =========== CONTENT SLIDE =========== */
+.slide.cont .header{padding:28px 52px 0;}
+.slide.cont .page-title{font-size:28px;font-weight:700;color:#1a1a1a;padding-bottom:10px;}
+.slide.cont .content{padding:20px 52px 20px;flex:1;overflow:hidden;}
+
+/* =========== ENDING SLIDE =========== */
+.slide.ending{background:#111;color:#fff;}
+.ending .orange-block{position:absolute;bottom:0;left:0;width:120px;height:120px;background:#E85A1A;}
+.ending .inner{
+  position:relative;z-index:2;
+  padding:0 72px;
+  flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;
+  text-align:center;
+}
+.ending h1{font-size:56px;font-weight:900;color:#fff;letter-spacing:-2px;}
+.ending .bar{width:48px;height:4px;background:#E85A1A;margin:18px auto;}
+.ending .sub{font-size:16px;font-weight:300;color:#aaa;}
+.ending .ty{margin-top:32px;font-size:13px;color:#555;letter-spacing:2px;text-transform:uppercase;}
+.ending .hc-logo{color:#fff;}
+
+/* ── Content components ── */
+.two-col{display:flex;gap:20px;}
+.col-box{flex:1;background:#f7f7f7;border-left:4px solid #E85A1A;padding:14px 16px;border-radius:0 4px 4px 0;}
+.col-box.green{border-color:#2a9d4e;background:#f2faf5;}
+.col-box.red{border-color:#dc2626;background:#fef2f2;}
+.col-box .box-title{font-size:12px;font-weight:700;color:#E85A1A;letter-spacing:1px;margin-bottom:6px;}
+.col-box.green .box-title{color:#2a9d4e;}
+.col-box.red .box-title{color:#dc2626;}
+.col-box ul{padding-left:18px;}
+.col-box li{font-size:13px;line-height:1.9;color:#333;}
+.col-box li strong{color:#1a1a1a;}
+
+.hl-box{background:#f0f4ff;border-left:4px solid #2563eb;padding:12px 16px;border-radius:0 4px 4px 0;font-size:13px;color:#1e3a8a;margin-top:12px;}
+.ok-box{background:#f0fdf4;border-left:4px solid #16a34a;padding:12px 16px;border-radius:0 4px 4px 0;font-size:13px;color:#14532d;margin-top:12px;}
+
+.three-num{display:flex;gap:16px;margin:10px 0;}
+.num-card{flex:1;background:#f7f7f7;border-top:4px solid #E85A1A;padding:14px 12px;text-align:center;border-radius:0 0 4px 4px;}
+.num-card .big{font-size:34px;font-weight:700;color:#E85A1A;}
+.num-card .nm-label{font-size:12px;color:#666;margin-top:4px;line-height:1.5;}
+
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{background:#1a1a1a;color:#fff;padding:8px 12px;text-align:left;font-weight:500;font-size:12px;letter-spacing:0.5px;}
+td{border-bottom:1px solid #e5e7eb;padding:7px 12px;color:#333;vertical-align:top;}
+tr:last-child td{border-bottom:none;}
+td code{background:#f0f0f0;padding:1px 5px;border-radius:3px;font-size:11px;font-family:'Courier New',monospace;}
+
+.flow{display:flex;align-items:center;justify-content:center;gap:6px;margin:14px 0;flex-wrap:wrap;}
+.fstep{background:#1a1a1a;color:#fff;padding:9px 14px;border-radius:4px;font-size:12px;font-weight:500;text-align:center;line-height:1.3;min-width:100px;}
+.fstep.orange{background:#E85A1A;}
+.fstep.green{background:#2a9d4e;}
+.fstep.blue{background:#2563eb;}
+.farrow{font-size:16px;color:#E85A1A;font-weight:700;}
+
+.diagram{background:#f7f7f7;padding:14px 20px;border-radius:4px;font-family:'Courier New',monospace;font-size:12px;line-height:1.8;white-space:pre;color:#333;}
+
+ul.main-list{padding-left:0;list-style:none;}
+ul.main-list li{font-size:14px;line-height:1.8;padding:4px 0 4px 16px;border-left:3px solid #e5e7eb;margin-bottom:6px;color:#333;}
+ul.main-list li strong{color:#E85A1A;}
+
+.tag-good{display:inline-block;background:#f0fdf4;color:#16a34a;font-size:11px;font-weight:600;padding:2px 8px;border-radius:3px;border:1px solid #bbf7d0;}
+.tag-mid{display:inline-block;background:#eff6ff;color:#2563eb;font-size:11px;font-weight:600;padding:2px 8px;border-radius:3px;border:1px solid #bfdbfe;}
+.tag-wait{display:inline-block;background:#f9fafb;color:#6b7280;font-size:11px;font-weight:600;padding:2px 8px;border-radius:3px;border:1px solid #e5e7eb;}
+
+h3.sec-h3{font-size:14px;font-weight:600;color:#E85A1A;margin:12px 0 6px;letter-spacing:0.3px;}
+
+@media print{
+  body{background:#fff;padding:0;}
+  .slide{margin:0;page-break-after:always;box-shadow:none;}
+}
+</style>
+</head>
+<body>
+
+<!-- ====== SLIDE 1: COVER ====== -->
+<div class="slide cover">
+  <div class="orange-block"></div>
+  <div class="hc-logo">HAN<span>COM</span></div>
+  <div class="inner">
+    <h1>DocPilot</h1>
+    <div class="bar"></div>
+    <div class="sub">코드를 분석하여 API 명세서를 자동으로 생성하는<br>문서 자동화 에이전트</div>
+    <div class="meta">GitLab &nbsp;×&nbsp; LLM &nbsp;×&nbsp; Confluence</div>
+  </div>
+  <div class="snum" style="color:#444;">1</div>
+</div>
+
+<!-- ====== SLIDE 2: 문제 정의 ====== -->
+<div class="slide cont">
+  <div class="hc-logo">HAN<span>COM</span></div>
+  <div class="header">
+    <div class="page-title">왜 이 프로젝트를 시작했는가</div>
+  </div>
+  <div class="orange-rule"></div>
+  <div class="content">
+    <div class="two-col" style="gap:16px;margin-bottom:12px;">
+      <div class="col-box red">
+        <div class="box-title">신규 개발 시</div>
+        <ul>
+          <li>기능 구현에 집중하다 보면 명세서 작성은 항상 뒤로 밀림</li>
+          <li>"나중에 정리하자"가 영원히 계속됨</li>
+        </ul>
+      </div>
+      <div class="col-box red">
+        <div class="box-title">업무 인계 시</div>
+        <ul>
+          <li>명세서 없이 코드만 인계받는 상황</li>
+          <li>Controller를 하나씩 열어보며 엔드포인트 파악</li>
+          <li>수십 개 Controller → <strong>며칠 소요</strong></li>
+        </ul>
+      </div>
+    </div>
+    <div class="hl-box" style="border-color:#E85A1A;background:#fff8f4;color:#7c2d12;">
+      <strong>문제:</strong> 백엔드 개발에서 API 명세서는 필수이지만, 현실적으로 잘 작성되지 않는다.
+    </div>
+    <div class="ok-box">
+      <strong>DocPilot의 해결:</strong> GitLab에 코드만 있으면 LLM이 분석하여 Confluence에 API 명세서를 자동 생성. 코드 변경 시 문서도 자동 갱신.
+    </div>
+  </div>
+  <div class="snum">2</div>
+</div>
+
+<!-- ====== SLIDE 3: 핵심 가치 ====== -->
+<div class="slide cont">
+  <div class="hc-logo">HAN<span>COM</span></div>
+  <div class="header">
+    <div class="page-title">DocPilot의 핵심 가치</div>
+  </div>
+  <div class="orange-rule"></div>
+  <div class="content">
+    <div class="three-num">
+      <div class="num-card">
+        <div class="big">0</div>
+        <div class="nm-label">명세서 작성에 소요되는<br><strong>추가 시간</strong></div>
+      </div>
+      <div class="num-card">
+        <div class="big">Auto</div>
+        <div class="nm-label">코드 Push 시<br><strong>자동 문서 갱신</strong></div>
+      </div>
+      <div class="num-card">
+        <div class="big">3</div>
+        <div class="nm-label">지원 플랫폼<br><strong>Spring / Django / Express</strong></div>
+      </div>
+    </div>
+    <h3 class="sec-h3">기대 효과</h3>
+    <ul class="main-list">
+      <li><strong>개발자</strong> — 코드만 작성하면 명세서가 자동으로 생성됨. 부가 업무 제거.</li>
+      <li><strong>프론트엔드 / QA</strong> — 항상 최신 상태의 API 문서를 Confluence에서 확인 가능.</li>
+      <li><strong>인수인계</strong> — 코드 기반 명세서가 이미 존재하여, 즉시 업무 파악 가능.</li>
+      <li><strong>조직</strong> — 프로젝트 전체의 API 현황을 대시보드에서 한눈에 파악.</li>
+    </ul>
+  </div>
+  <div class="snum">3</div>
+</div>
+
+<!-- ====== SLIDE 4: 아키텍처 ====== -->
+<div class="slide cont">
+  <div class="hc-logo">HAN<span>COM</span></div>
+  <div class="header">
+    <div class="page-title">시스템 아키텍처</div>
+  </div>
+  <div class="orange-rule"></div>
+  <div class="content">
+    <p style="font-size:13px;color:#666;margin-bottom:10px;"><strong>Source → LLM → Target</strong> 3단계 파이프라인</p>
+    <div class="flow">
+      <div class="fstep blue">GitLab<br><span style="font-size:10px;opacity:.75;">코드 저장소</span></div>
+      <div class="farrow">›</div>
+      <div class="fstep">Webhook<br><span style="font-size:10px;opacity:.75;">Push / MR 감지</span></div>
+      <div class="farrow">›</div>
+      <div class="fstep">DocPilot<br><span style="font-size:10px;opacity:.75;">코드 수집 &amp; 분석</span></div>
+      <div class="farrow">›</div>
+      <div class="fstep orange">LLM<br><span style="font-size:10px;opacity:.75;">Claude / OpenAI</span></div>
+      <div class="farrow">›</div>
+      <div class="fstep green">Confluence<br><span style="font-size:10px;opacity:.75;">문서 자동 생성</span></div>
+    </div>
+    <h3 class="sec-h3">동작 방식</h3>
+    <table>
+      <tr><th style="width:110px;">트리거</th><th>설명</th></tr>
+      <tr><td><strong>Webhook</strong></td><td>GitLab Push/MR 시 변경된 Controller 감지 → 해당 API 명세서만 재생성</td></tr>
+      <tr><td><strong>서버 기동</strong></td><td>등록된 프로젝트의 전체 Controller 스캔 → 미처리 항목 자동 생성</td></tr>
+      <tr><td><strong>UI 수동</strong></td><td>관리 화면에서 개별 Controller 선택하여 재생성 / 동기화</td></tr>
+    </table>
+  </div>
+  <div class="snum">4</div>
+</div>
+
+<!-- ====== SLIDE 5: 파이프라인 ====== -->
+<div class="slide cont">
+  <div class="hc-logo">HAN<span>COM</span></div>
+  <div class="header">
+    <div class="page-title">API 명세서 생성 파이프라인</div>
+  </div>
+  <div class="orange-rule"></div>
+  <div class="content">
+    <div class="flow" style="margin-bottom:4px;">
+      <div class="fstep">Controller 탐색<br><span style="font-size:10px;opacity:.75;">GitLab 파일 검색</span></div>
+      <div class="farrow">›</div>
+      <div class="fstep">시그니처 추출<br><span style="font-size:10px;opacity:.75;">본문 제거</span></div>
+      <div class="farrow">›</div>
+      <div class="fstep orange">LLM 분석<br><span style="font-size:10px;opacity:.75;">JSON 메타데이터</span></div>
+      <div class="farrow">›</div>
+      <div class="fstep green">그룹 페이지<br><span style="font-size:10px;opacity:.75;">API 목록 테이블</span></div>
+    </div>
+    <p style="text-align:center;font-size:12px;color:#E85A1A;font-weight:600;margin:6px 0;">↓ 각 API 엔드포인트별 반복</p>
+    <div class="flow" style="margin-bottom:10px;">
+      <div class="fstep">메서드 코드 추출</div>
+      <div class="farrow">›</div>
+      <div class="fstep">DTO/Serializer<br><span style="font-size:10px;opacity:.75;">소스 수집</span></div>
+      <div class="farrow">›</div>
+      <div class="fstep orange">LLM 분석<br><span style="font-size:10px;opacity:.75;">상세 명세 XML</span></div>
+      <div class="farrow">›</div>
+      <div class="fstep green">Confluence<br><span style="font-size:10px;opacity:.75;">페이지 생성</span></div>
+    </div>
+    <h3 class="sec-h3">생성되는 Confluence 페이지 구조</h3>
+    <div class="diagram">[프로젝트] API 명세서
+ ├── [프로젝트] 인증
+ │    ├── [프로젝트] API - 로그인  /  API - 로그아웃  /  API - 토큰갱신
+ ├── [프로젝트] 사용자
+ │    ├── [프로젝트] API - 회원가입  /  API - 프로필조회
+ └── ...</div>
+  </div>
+  <div class="snum">5</div>
+</div>
+
+<!-- ====== SLIDE 6: 멀티 플랫폼 ====== -->
+<div class="slide cont">
+  <div class="hc-logo">HAN<span>COM</span></div>
+  <div class="header">
+    <div class="page-title">멀티 플랫폼 지원</div>
+  </div>
+  <div class="orange-rule"></div>
+  <div class="content">
+    <p style="font-size:13px;color:#555;margin-bottom:10px;">프로젝트 등록 시 플랫폼을 선택하면, 플랫폼에 맞는 분석 로직이 자동 적용됩니다.</p>
+    <table>
+      <tr>
+        <th style="width:120px;">플랫폼</th>
+        <th>탐색 패턴</th>
+        <th>분석 대상</th>
+        <th style="width:80px;">상태</th>
+      </tr>
+      <tr>
+        <td><strong>Spring Boot</strong><br><span style="font-size:11px;color:#888;">Java</span></td>
+        <td><code>*Controller.java</code> in <code>/controller/</code></td>
+        <td><code>@GetMapping</code>, <code>@PostMapping</code> 등 어노테이션 + DTO import 추적</td>
+        <td><span class="tag-good">완전 지원</span></td>
+      </tr>
+      <tr>
+        <td><strong>Django</strong><br><span style="font-size:11px;color:#888;">Python</span></td>
+        <td><code>views.py</code>, <code>viewsets.py</code>, <code>/views/</code></td>
+        <td><code>@api_view</code>, <code>ViewSet</code>, <code>@action</code> + Serializer / urls.py</td>
+        <td><span class="tag-mid">지원</span></td>
+      </tr>
+      <tr>
+        <td><strong>Express</strong><br><span style="font-size:11px;color:#888;">Node.js</span></td>
+        <td><code>.js</code>/<code>.ts</code> in <code>/routes/</code></td>
+        <td><code>router.get()</code>, <code>router.post()</code> 등</td>
+        <td><span class="tag-wait">준비 중</span></td>
+      </tr>
+    </table>
+    <div class="hl-box" style="margin-top:10px;">
+      <strong>DTO/Serializer 자동 수집:</strong> Controller 코드의 import 문을 분석하여 요청/응답 객체의 필드 정보를 자동으로 수집하며, 의존 프로젝트와 공통 라이브러리까지 확장 검색합니다.
+    </div>
+  </div>
+  <div class="snum">6</div>
+</div>
+
+<!-- ====== SLIDE 7: 기술 스택 ====== -->
+<div class="slide cont">
+  <div class="hc-logo">HAN<span>COM</span></div>
+  <div class="header">
+    <div class="page-title">기술 스택</div>
+  </div>
+  <div class="orange-rule"></div>
+  <div class="content">
+    <div class="two-col">
+      <div style="flex:1;">
+        <h3 class="sec-h3">백엔드</h3>
+        <table>
+          <tr><td><strong>Java 17</strong></td><td style="color:#555;">기반 언어</td></tr>
+          <tr><td><strong>Spring Boot 3.5</strong></td><td style="color:#555;">프레임워크</td></tr>
+          <tr><td><strong>Spring Security 6</strong></td><td style="color:#555;">인증 / 인가</td></tr>
+          <tr><td><strong>Spring Data JPA</strong></td><td style="color:#555;">ORM</td></tr>
+          <tr><td><strong>H2 Database</strong></td><td style="color:#555;">임베디드 DB</td></tr>
+          <tr><td><strong>Spring WebFlux</strong></td><td style="color:#555;">WebClient (비동기 HTTP)</td></tr>
+        </table>
+      </div>
+      <div style="flex:1;">
+        <h3 class="sec-h3">연동</h3>
+        <table>
+          <tr><td><strong>gitlab4j-api 6.x</strong></td><td style="color:#555;">GitLab API</td></tr>
+          <tr><td><strong>Claude API</strong></td><td style="color:#555;">Anthropic LLM</td></tr>
+          <tr><td><strong>OpenAI API</strong></td><td style="color:#555;">GPT LLM</td></tr>
+          <tr><td><strong>Confluence REST</strong></td><td style="color:#555;">문서 플랫폼</td></tr>
+        </table>
+        <h3 class="sec-h3">프론트엔드</h3>
+        <table>
+          <tr><td><strong>Thymeleaf 3</strong></td><td style="color:#555;">서버 사이드 렌더링</td></tr>
+          <tr><td><strong>Bootstrap 5</strong></td><td style="color:#555;">UI 프레임워크</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="snum">7</div>
+</div>
+
+<!-- ====== SLIDE 8: 웹 UI ====== -->
+<div class="slide cont">
+  <div class="hc-logo">HAN<span>COM</span></div>
+  <div class="header">
+    <div class="page-title">관리 화면 (웹 UI)</div>
+  </div>
+  <div class="orange-rule"></div>
+  <div class="content">
+    <table>
+      <tr><th>페이지</th><th>기능</th><th style="width:90px;">접근 권한</th></tr>
+      <tr><td><strong>대시보드</strong></td><td>프로젝트 현황, 연결 상태, Controller 처리 통계</td><td>전체</td></tr>
+      <tr><td><strong>프로젝트 관리</strong></td><td>프로젝트 CRUD, 공통 라이브러리 관리, 플랫폼 선택</td><td>전체</td></tr>
+      <tr><td><strong>API 명세서 현황</strong></td><td>Controller별 처리 상태 조회, 개별 재생성, 동기화</td><td>전체</td></tr>
+      <tr><td><strong>LLM 설정</strong></td><td>Claude/OpenAI 제공자 관리, API Key, 활성 LLM 전환</td><td>관리자</td></tr>
+      <tr><td><strong>웹훅 이벤트</strong></td><td>GitLab 웹훅 수신 이력 조회</td><td>전체</td></tr>
+      <tr><td><strong>사용자 관리</strong></td><td>신규 사용자 승인 / 삭제</td><td>관리자</td></tr>
+    </table>
+    <div class="hl-box" style="margin-top:10px;border-color:#E85A1A;background:#fff8f4;color:#7c2d12;">
+      <strong>프로젝트 추가 시:</strong> GitLab 프로젝트 ID와 경로를 입력하면, 서비스 개요 페이지와 API 명세서가 Confluence에 자동으로 생성됩니다.
+    </div>
+  </div>
+  <div class="snum">8</div>
+</div>
+
+<!-- ====== SLIDE 9: Webhook 흐름 ====== -->
+<div class="slide cont">
+  <div class="hc-logo">HAN<span>COM</span></div>
+  <div class="header">
+    <div class="page-title">Webhook 기반 자동 갱신</div>
+  </div>
+  <div class="orange-rule"></div>
+  <div class="content">
+    <p style="font-size:13px;color:#555;margin-bottom:10px;">개발자가 코드를 Push하면, 변경된 Controller만 감지하여 해당 API 명세서를 자동으로 업데이트합니다.</p>
+    <div class="diagram">GitLab Push / Merge Request
+        │
+        ▼
+[Webhook 수신]  X-Gitlab-Token 검증
+        │
+        ├─ 커밋 메시지에 [skip-doc] 포함? → 건너뜀
+        ├─ 트리거 브랜치 확인 (main, develop)
+        │
+        ▼  즉시 200 OK 반환 (비동기 처리)
+[변경 파일 분석]
+        │
+        ├─ 일반 파일 변경 → LLM 분석 → Confluence 업데이트
+        └─ Controller/View 파일 감지
+           └─ 플랫폼별 분기
+              ├─ Spring Boot → ApiSpecInitializationService
+              ├─ Django     → DjangoApiSpecService
+              └─ Express    → (준비 중)</div>
+  </div>
+  <div class="snum">9</div>
+</div>
+
+<!-- ====== SLIDE 10: 설정 및 운영 ====== -->
+<div class="slide cont">
+  <div class="hc-logo">HAN<span>COM</span></div>
+  <div class="header">
+    <div class="page-title">설정 및 운영</div>
+  </div>
+  <div class="orange-rule"></div>
+  <div class="content">
+    <div class="two-col">
+      <div style="flex:1.1;">
+        <h3 class="sec-h3">설정 파일 (3개)</h3>
+        <table>
+          <tr><td><strong>application.yml</strong></td><td style="color:#555;">GitLab/Confluence 접속 정보,<br>서버 포트, DB 설정</td></tr>
+          <tr><td><strong>llm_config.json</strong></td><td style="color:#555;">LLM 제공자 선택, API Key, 모델명</td></tr>
+          <tr><td><strong>page_structure_config.json</strong></td><td style="color:#555;">프로젝트 ↔ Confluence 매핑,<br>브랜치 규칙, 페이지 구조</td></tr>
+        </table>
+      </div>
+      <div style="flex:0.9;">
+        <h3 class="sec-h3">실행 방법</h3>
+        <div class="diagram" style="font-size:12px;padding:10px 14px;"># 빌드
+./mvnw clean package
+
+# 실행 (포트 8001)
+./mvnw spring-boot:run
+
+# 초기 접속
+http://localhost:8001
+admin / admin</div>
+        <h3 class="sec-h3">보안</h3>
+        <ul style="padding-left:18px;font-size:13px;">
+          <li style="line-height:1.9;">Spring Security 폼 로그인 / BCrypt 해시</li>
+          <li style="line-height:1.9;">역할: ADMIN / USER</li>
+          <li style="line-height:1.9;">신규 가입 → 관리자 승인 필요</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="snum">10</div>
+</div>
+
+<!-- ====== SLIDE 11: Before / After ====== -->
+<div class="slide cont">
+  <div class="hc-logo">HAN<span>COM</span></div>
+  <div class="header">
+    <div class="page-title">도입 효과: Before vs After</div>
+  </div>
+  <div class="orange-rule"></div>
+  <div class="content">
+    <div class="two-col" style="margin-top:8px;">
+      <div class="col-box red">
+        <div class="box-title">BEFORE — 수동</div>
+        <ul>
+          <li>Controller 코드를 하나씩 열어 엔드포인트 파악</li>
+          <li>요청/응답 DTO 구조 수동 정리</li>
+          <li>Confluence에 표 형식으로 직접 작성</li>
+          <li>코드 변경 시 문서와 동기화 안 됨</li>
+          <li>Controller 30개 기준 <strong>약 3 ~ 5일 소요</strong></li>
+        </ul>
+      </div>
+      <div class="col-box green">
+        <div class="box-title">AFTER — DocPilot</div>
+        <ul>
+          <li>프로젝트 등록 1번으로 전체 자동 생성</li>
+          <li>DTO/Serializer 소스 자동 수집 및 반영</li>
+          <li>Confluence에 정형화된 형식으로 자동 작성</li>
+          <li>코드 Push 시 Webhook으로 자동 갱신</li>
+          <li>Controller 30개 기준 <strong>약 30분 소요</strong></li>
+        </ul>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;margin-top:14px;">
+      <div style="flex:1;background:#fef2f2;border-radius:4px;padding:12px;text-align:center;">
+        <div style="font-size:28px;font-weight:700;color:#dc2626;">3~5일</div>
+        <div style="font-size:12px;color:#666;margin-top:4px;">수동 명세서 작성 소요 시간</div>
+      </div>
+      <div style="flex:0.1;display:flex;align-items:center;justify-content:center;font-size:22px;color:#E85A1A;font-weight:700;">→</div>
+      <div style="flex:1;background:#f0fdf4;border-radius:4px;padding:12px;text-align:center;">
+        <div style="font-size:28px;font-weight:700;color:#16a34a;">30분</div>
+        <div style="font-size:12px;color:#666;margin-top:4px;">DocPilot 자동 생성 소요 시간</div>
+      </div>
+    </div>
+  </div>
+  <div class="snum">11</div>
+</div>
+
+<!-- ====== SLIDE 12: 향후 계획 ====== -->
+<div class="slide cont">
+  <div class="hc-logo">HAN<span>COM</span></div>
+  <div class="header">
+    <div class="page-title">향후 계획</div>
+  </div>
+  <div class="orange-rule"></div>
+  <div class="content">
+    <table>
+      <tr><th style="width:50px;">단계</th><th style="width:200px;">항목</th><th>설명</th></tr>
+      <tr>
+        <td style="text-align:center;font-weight:700;color:#E85A1A;">1</td>
+        <td><strong>Express.js 지원 완성</strong></td>
+        <td>Node.js Express 프로젝트의 라우트 파일 분석 및 API 명세서 생성</td>
+      </tr>
+      <tr>
+        <td style="text-align:center;font-weight:700;color:#E85A1A;">2</td>
+        <td><strong>Jira 연동</strong></td>
+        <td>Jira 이슈/스프린트 데이터 기반 주간보고서 자동 생성</td>
+      </tr>
+      <tr>
+        <td style="text-align:center;font-weight:700;color:#E85A1A;">3</td>
+        <td><strong>Slack 알림</strong></td>
+        <td>문서 생성/변경 완료 시 Slack 채널 알림 발송</td>
+      </tr>
+      <tr>
+        <td style="text-align:center;font-weight:700;color:#E85A1A;">4</td>
+        <td><strong>추가 플랫폼</strong></td>
+        <td>FastAPI (Python), Go Gin, NestJS 등 지원 확장</td>
+      </tr>
+      <tr>
+        <td style="text-align:center;font-weight:700;color:#E85A1A;">5</td>
+        <td><strong>문서 품질 개선</strong></td>
+        <td>생성된 명세서 검증 및 피드백 루프, 서식 커스터마이징 강화</td>
+      </tr>
+    </table>
+    <div class="hl-box" style="margin-top:12px;border-color:#E85A1A;background:#fff8f4;color:#7c2d12;">
+      <strong>확장 구조:</strong> 새로운 플랫폼 추가 시 기존 코드(Spring Boot)는 수정하지 않으며, 플랫폼별 독립 서비스 클래스만 추가합니다.
+    </div>
+  </div>
+  <div class="snum">12</div>
+</div>
+
+<!-- ====== SLIDE 13: ENDING ====== -->
+<div class="slide ending">
+  <div class="orange-block"></div>
+  <div class="hc-logo">HAN<span>COM</span></div>
+  <div class="inner">
+    <h1>DocPilot</h1>
+    <div class="bar"></div>
+    <div class="sub">코드를 작성하면, 문서는 자동으로 만들어집니다.</div>
+    <div class="ty">Thank you</div>
+  </div>
+  <div class="snum" style="color:#444;">13</div>
+</div>
+
+</body>
+</html>
