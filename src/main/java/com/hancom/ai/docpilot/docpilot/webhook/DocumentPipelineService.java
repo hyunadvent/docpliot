@@ -23,19 +23,25 @@ public class DocumentPipelineService {
     private final PromptTemplateService promptTemplateService;
     private final ConfluenceTargetService confluenceTargetService;
     private final ApiSpecInitializationService apiSpecInitializationService;
+    private final ExpressApiSpecService expressApiSpecService;
+    private final DjangoApiSpecService djangoApiSpecService;
 
     public DocumentPipelineService(ConfigLoaderService configLoaderService,
                                    GitLabSourceService gitLabSourceService,
                                    LLMRouter llmRouter,
                                    PromptTemplateService promptTemplateService,
                                    ConfluenceTargetService confluenceTargetService,
-                                   ApiSpecInitializationService apiSpecInitializationService) {
+                                   ApiSpecInitializationService apiSpecInitializationService,
+                                   ExpressApiSpecService expressApiSpecService,
+                                   DjangoApiSpecService djangoApiSpecService) {
         this.configLoaderService = configLoaderService;
         this.gitLabSourceService = gitLabSourceService;
         this.llmRouter = llmRouter;
         this.promptTemplateService = promptTemplateService;
         this.confluenceTargetService = confluenceTargetService;
         this.apiSpecInitializationService = apiSpecInitializationService;
+        this.expressApiSpecService = expressApiSpecService;
+        this.djangoApiSpecService = djangoApiSpecService;
     }
 
     /**
@@ -97,21 +103,43 @@ public class DocumentPipelineService {
      */
     private void processControllerChanges(List<String> changedFiles, String spaceKey,
                                            ConfluenceStructure.ProjectMapping projectMapping, String branch) {
-        List<String> changedControllers = changedFiles.stream()
-                .filter(f -> f.contains("/controller/") && f.endsWith("Controller.java"))
-                .filter(f -> !f.contains("ErrorHandler") && !f.contains("CustomError"))
-                .toList();
+        String platform = projectMapping.getPlatform() != null ? projectMapping.getPlatform() : "springboot";
 
-        if (changedControllers.isEmpty()) {
-            return;
-        }
-
-        log.info("변경된 Controller {}개 감지, API 명세서 업데이트 시작: {}", changedControllers.size(), changedControllers);
-
-        try {
-            apiSpecInitializationService.processControllerUpdate(spaceKey, projectMapping, changedControllers, branch);
-        } catch (Exception e) {
-            log.error("Controller API 명세서 업데이트 실패", e);
+        List<String> changedControllers;
+        switch (platform) {
+            case "express" -> {
+                changedControllers = expressApiSpecService.filterChangedRouteFiles(changedFiles);
+                if (changedControllers.isEmpty()) return;
+                log.info("변경된 Express 라우트 {}개 감지, API 명세서 업데이트 시작: {}", changedControllers.size(), changedControllers);
+                try {
+                    expressApiSpecService.processControllerUpdate(spaceKey, projectMapping, changedControllers, branch);
+                } catch (Exception e) {
+                    log.error("Express API 명세서 업데이트 실패", e);
+                }
+            }
+            case "django" -> {
+                changedControllers = djangoApiSpecService.filterChangedViewFiles(changedFiles);
+                if (changedControllers.isEmpty()) return;
+                log.info("변경된 Django 뷰 {}개 감지, API 명세서 업데이트 시작: {}", changedControllers.size(), changedControllers);
+                try {
+                    djangoApiSpecService.processControllerUpdate(spaceKey, projectMapping, changedControllers, branch);
+                } catch (Exception e) {
+                    log.error("Django API 명세서 업데이트 실패", e);
+                }
+            }
+            default -> {
+                changedControllers = changedFiles.stream()
+                        .filter(f -> f.contains("/controller/") && f.endsWith("Controller.java"))
+                        .filter(f -> !f.contains("ErrorHandler") && !f.contains("CustomError"))
+                        .toList();
+                if (changedControllers.isEmpty()) return;
+                log.info("변경된 Controller {}개 감지, API 명세서 업데이트 시작: {}", changedControllers.size(), changedControllers);
+                try {
+                    apiSpecInitializationService.processControllerUpdate(spaceKey, projectMapping, changedControllers, branch);
+                } catch (Exception e) {
+                    log.error("Controller API 명세서 업데이트 실패", e);
+                }
+            }
         }
     }
 

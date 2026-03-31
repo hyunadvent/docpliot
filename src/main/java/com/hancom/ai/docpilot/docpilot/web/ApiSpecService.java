@@ -38,13 +38,36 @@ public class ApiSpecService {
         if (project == null) return Collections.emptyList();
 
         try {
-            // GitLab에서 Controller 파일 목록 (source of truth)
+            // GitLab에서 Controller/Route 파일 목록 (source of truth)
             String defaultBranch = gitLabSourceService.getDefaultBranch(gitlabProjectId);
-            List<String> controllerFiles = gitLabSourceService.findFiles(gitlabProjectId, defaultBranch, "Controller.java");
-            controllerFiles = controllerFiles.stream()
-                    .filter(f -> !f.contains("ErrorHandler") && !f.contains("CustomError"))
-                    .filter(f -> f.contains("/controller/"))
-                    .toList();
+            String platform = project.getPlatform() != null ? project.getPlatform() : "springboot";
+
+            List<String> controllerFiles;
+            switch (platform) {
+                case "express" -> {
+                    List<String> jsFiles = gitLabSourceService.findFiles(gitlabProjectId, defaultBranch, ".js");
+                    List<String> tsFiles = gitLabSourceService.findFiles(gitlabProjectId, defaultBranch, ".ts");
+                    List<String> allFiles = new ArrayList<>();
+                    allFiles.addAll(jsFiles);
+                    allFiles.addAll(tsFiles);
+                    controllerFiles = allFiles.stream()
+                            .filter(f -> f.contains("/routes/") || f.contains("/controllers/"))
+                            .toList();
+                }
+                case "django" -> {
+                    List<String> pyFiles = gitLabSourceService.findFiles(gitlabProjectId, defaultBranch, ".py");
+                    controllerFiles = pyFiles.stream()
+                            .filter(f -> f.contains("views") || f.contains("viewsets"))
+                            .toList();
+                }
+                default -> {
+                    controllerFiles = gitLabSourceService.findFiles(gitlabProjectId, defaultBranch, "Controller.java");
+                    controllerFiles = controllerFiles.stream()
+                            .filter(f -> !f.contains("ErrorHandler") && !f.contains("CustomError"))
+                            .filter(f -> f.contains("/controller/"))
+                            .toList();
+                }
+            }
 
             // DB에서 매핑 정보 조회
             Map<String, ControllerPageMappingEntity> pathToMapping = controllerPageMappingRepository
@@ -98,6 +121,6 @@ public class ApiSpecService {
     private String extractSimpleName(String path) {
         int lastSlash = path.lastIndexOf('/');
         String fileName = lastSlash >= 0 ? path.substring(lastSlash + 1) : path;
-        return fileName.replace(".java", "");
+        return fileName.replaceAll("\\.(java|js|ts|py)$", "");
     }
 }

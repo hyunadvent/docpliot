@@ -96,6 +96,7 @@
             <tr>
                 <th>프로젝트 ID</th>
                 <th>GitLab 경로</th>
+                <th>플랫폼</th>
                 <th>페이지 접두사</th>
                 <th>Confluence 위치</th>
                 <th>페이지 설정</th>
@@ -107,6 +108,11 @@
                 th:attr="onclick='navigateToApiSpecs(event, ' + ${project.gitlabProjectId} + ')'">
                 <td><code th:text="${project.gitlabProjectId}"></code></td>
                 <td class="fw-medium" th:text="${project.gitlabPath}"></td>
+                <td>
+                    <span class="badge bg-success" th:if="${project.platform == 'springboot' or project.platform == null}">Spring Boot</span>
+                    <span class="badge bg-warning text-dark" th:if="${project.platform == 'express'}">Express</span>
+                    <span class="badge bg-primary" th:if="${project.platform == 'django'}">Django</span>
+                </td>
                 <td>
                     <span class="badge bg-info" th:text="${project.pageTitlePrefix}" th:if="${project.pageTitlePrefix}"></span>
                 </td>
@@ -135,7 +141,7 @@
                 </td>
             </tr>
             <tr th:if="${#lists.isEmpty(projects)}">
-                <td colspan="6" class="text-center text-muted py-4">등록된 프로젝트가 없습니다.</td>
+                <td colspan="7" class="text-center text-muted py-4">등록된 프로젝트가 없습니다.</td>
             </tr>
             </tbody>
         </table>
@@ -193,6 +199,14 @@
                             <div class="col-md-6">
                                 <label class="form-label">GitLab 경로 <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="gitlabPath" placeholder="group/project" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">플랫폼 <span class="text-danger">*</span></label>
+                                <select class="form-select" id="platform">
+                                    <option value="springboot" selected>Spring Boot (Java)</option>
+                                    <option value="express">Express (Node.js)</option>
+                                    <option value="django" disabled>Django (Python) - 준비 중</option>
+                                </select>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">페이지 제목 접두사</label>
@@ -320,6 +334,7 @@
             document.getElementById('gitlabProjectId').value = '';
             document.getElementById('gitlabProjectId').disabled = false;
             document.getElementById('gitlabPath').value = '';
+            document.getElementById('platform').value = 'springboot';
             document.getElementById('pageTitlePrefix').value = '';
             document.getElementById('confluenceParentPages').value = '';
         }
@@ -334,6 +349,7 @@
                     document.getElementById('gitlabProjectId').value = project.gitlab_project_id;
                     document.getElementById('gitlabProjectId').disabled = true;
                     document.getElementById('gitlabPath').value = project.gitlab_path;
+                    document.getElementById('platform').value = project.platform || 'springboot';
                     document.getElementById('pageTitlePrefix').value = project.page_title_prefix || '';
                     document.getElementById('confluenceParentPages').value =
                         (project.confluence_parent_pages || []).join(' > ');
@@ -349,6 +365,7 @@
             const data = {
                 gitlab_project_id: parseInt(document.getElementById('gitlabProjectId').value),
                 gitlab_path: document.getElementById('gitlabPath').value,
+                platform: document.getElementById('platform').value,
                 page_title_prefix: document.getElementById('pageTitlePrefix').value,
                 confluence_parent_pages: document.getElementById('confluenceParentPages').value
                     .split(' > ').map(s => s.trim()).filter(s => s)

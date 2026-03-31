@@ -4,6 +4,8 @@ import com.hancom.ai.docpilot.docpilot.config.ConfigLoaderService;
 import com.hancom.ai.docpilot.docpilot.config.model.ConfluenceStructure;
 import com.hancom.ai.docpilot.docpilot.source.gitlab.GitLabSourceService;
 import com.hancom.ai.docpilot.docpilot.webhook.ApiSpecInitializationService;
+import com.hancom.ai.docpilot.docpilot.webhook.DjangoApiSpecService;
+import com.hancom.ai.docpilot.docpilot.webhook.ExpressApiSpecService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,15 +22,21 @@ public class ApiSpecApiController {
     private final ConfigLoaderService configLoaderService;
     private final GitLabSourceService gitLabSourceService;
     private final ApiSpecInitializationService apiSpecInitializationService;
+    private final ExpressApiSpecService expressApiSpecService;
+    private final DjangoApiSpecService djangoApiSpecService;
     private final ProcessingStatusTracker processingStatusTracker;
 
     public ApiSpecApiController(ConfigLoaderService configLoaderService,
                                 GitLabSourceService gitLabSourceService,
                                 ApiSpecInitializationService apiSpecInitializationService,
+                                ExpressApiSpecService expressApiSpecService,
+                                DjangoApiSpecService djangoApiSpecService,
                                 ProcessingStatusTracker processingStatusTracker) {
         this.configLoaderService = configLoaderService;
         this.gitLabSourceService = gitLabSourceService;
         this.apiSpecInitializationService = apiSpecInitializationService;
+        this.expressApiSpecService = expressApiSpecService;
+        this.djangoApiSpecService = djangoApiSpecService;
         this.processingStatusTracker = processingStatusTracker;
     }
 
@@ -83,8 +91,15 @@ public class ApiSpecApiController {
             String spaceKey = configLoaderService.getConfluenceStructure().getSpaceKey();
             String defaultBranch = gitLabSourceService.getDefaultBranch(projectId);
 
-            apiSpecInitializationService.processControllerUpdate(
-                    spaceKey, project, List.of(controllerPath), defaultBranch);
+            String platform = project.getPlatform() != null ? project.getPlatform() : "springboot";
+            switch (platform) {
+                case "express" -> expressApiSpecService.processControllerUpdate(
+                        spaceKey, project, List.of(controllerPath), defaultBranch);
+                case "django" -> djangoApiSpecService.processControllerUpdate(
+                        spaceKey, project, List.of(controllerPath), defaultBranch);
+                default -> apiSpecInitializationService.processControllerUpdate(
+                        spaceKey, project, List.of(controllerPath), defaultBranch);
+            }
 
             log.info("API 명세서 재생성 완료: project={}, controller={}", projectId, controllerPath);
             return ResponseEntity.ok(Map.of("message", "API 명세서가 재생성되었습니다."));

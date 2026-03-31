@@ -51,6 +51,8 @@ public class ConfluenceStructure {
         @JsonProperty("dependency_projects")
         private List<Long> dependencyProjects;
 
+        private String platform = "springboot";
+
         private List<Page> pages;
     }
 

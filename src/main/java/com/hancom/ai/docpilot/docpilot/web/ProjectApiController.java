@@ -3,6 +3,8 @@ package com.hancom.ai.docpilot.docpilot.web;
 import com.hancom.ai.docpilot.docpilot.config.ConfigLoaderService;
 import com.hancom.ai.docpilot.docpilot.config.model.ConfluenceStructure;
 import com.hancom.ai.docpilot.docpilot.webhook.ApiSpecInitializationService;
+import com.hancom.ai.docpilot.docpilot.webhook.DjangoApiSpecService;
+import com.hancom.ai.docpilot.docpilot.webhook.ExpressApiSpecService;
 import com.hancom.ai.docpilot.docpilot.webhook.ProjectInitializationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,16 +24,22 @@ public class ProjectApiController {
     private final ConfigLoaderService configLoaderService;
     private final ProjectInitializationService projectInitializationService;
     private final ApiSpecInitializationService apiSpecInitializationService;
+    private final ExpressApiSpecService expressApiSpecService;
+    private final DjangoApiSpecService djangoApiSpecService;
 
     @Value("${api-spec.max-controllers:0}")
     private int maxControllers;
 
     public ProjectApiController(ConfigLoaderService configLoaderService,
                                 ProjectInitializationService projectInitializationService,
-                                ApiSpecInitializationService apiSpecInitializationService) {
+                                ApiSpecInitializationService apiSpecInitializationService,
+                                ExpressApiSpecService expressApiSpecService,
+                                DjangoApiSpecService djangoApiSpecService) {
         this.configLoaderService = configLoaderService;
         this.projectInitializationService = projectInitializationService;
         this.apiSpecInitializationService = apiSpecInitializationService;
+        this.expressApiSpecService = expressApiSpecService;
+        this.djangoApiSpecService = djangoApiSpecService;
     }
 
     @GetMapping
@@ -85,8 +93,13 @@ public class ProjectApiController {
         // API 명세서 자동 생성 (max-controllers만큼)
         if (maxControllers != 0) {
             try {
-                apiSpecInitializationService.initializeApiSpecForProject(spaceKey, newProject, maxControllers);
-                log.info("API 명세서 초기 생성 완료: {} (max={})", newProject.getGitlabPath(), maxControllers);
+                String platform = newProject.getPlatform() != null ? newProject.getPlatform() : "springboot";
+                switch (platform) {
+                    case "express" -> expressApiSpecService.initializeApiSpecForProject(spaceKey, newProject, maxControllers);
+                    case "django" -> djangoApiSpecService.initializeApiSpecForProject(spaceKey, newProject, maxControllers);
+                    default -> apiSpecInitializationService.initializeApiSpecForProject(spaceKey, newProject, maxControllers);
+                }
+                log.info("API 명세서 초기 생성 완료: {} (platform={}, max={})", newProject.getGitlabPath(), platform, maxControllers);
             } catch (Exception e) {
                 log.error("API 명세서 초기 생성 실패: {}", newProject.getGitlabPath(), e);
             }
