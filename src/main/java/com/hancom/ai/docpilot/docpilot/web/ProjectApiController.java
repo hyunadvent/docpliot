@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @RestController
@@ -85,32 +86,11 @@ public class ProjectApiController {
         configLoaderService.saveConfluenceStructure(structure);
         log.info("프로젝트 추가: id={}, path={}, createdBy={}", newProject.getGitlabProjectId(), newProject.getGitlabPath(), auth.getName());
 
-        // 서비스 개요 및 구성도 자동 생성
+        // Confluence 페이지 생성 및 API 명세서 생성은 비동기로 처리
         String spaceKey = structure.getSpaceKey();
-        try {
-            projectInitializationService.initializeProject(spaceKey, newProject);
-            log.info("프로젝트 초기 페이지 생성 완료: {}", newProject.getGitlabPath());
-        } catch (Exception e) {
-            log.error("프로젝트 초기 페이지 생성 실패: {}", newProject.getGitlabPath(), e);
-        }
+        initializeProjectAsync(spaceKey, newProject);
 
-        // API 명세서 자동 생성 (max-controllers만큼)
-        int maxControllers = settingService.getInt(SystemSettingService.API_SPEC_MAX_CONTROLLERS, 0);
-        if (maxControllers != 0) {
-            try {
-                String platform = newProject.getPlatform() != null ? newProject.getPlatform() : "springboot";
-                switch (platform) {
-                    case "express" -> expressApiSpecService.initializeApiSpecForProject(spaceKey, newProject, maxControllers);
-                    case "django" -> djangoApiSpecService.initializeApiSpecForProject(spaceKey, newProject, maxControllers);
-                    default -> apiSpecInitializationService.initializeApiSpecForProject(spaceKey, newProject, maxControllers);
-                }
-                log.info("API 명세서 초기 생성 완료: {} (platform={}, max={})", newProject.getGitlabPath(), platform, maxControllers);
-            } catch (Exception e) {
-                log.error("API 명세서 초기 생성 실패: {}", newProject.getGitlabPath(), e);
-            }
-        }
-
-        return ResponseEntity.ok(Map.of("message", "프로젝트가 등록되고 초기 페이지가 생성되었습니다."));
+        return ResponseEntity.ok(Map.of("message", "프로젝트가 등록되었습니다. 초기 페이지 생성이 백그라운드에서 진행됩니다."));
     }
 
     @PutMapping("/{projectId}")
@@ -309,6 +289,34 @@ public class ProjectApiController {
     /**
      * 프로젝트 추가 시 기본 pages 설정을 생성합니다.
      */
+    private void initializeProjectAsync(String spaceKey, ConfluenceStructure.ProjectMapping project) {
+        CompletableFuture.runAsync(() -> {
+            // 서비스 개요 및 구성도 자동 생성
+            try {
+                projectInitializationService.initializeProject(spaceKey, project);
+                log.info("프로젝트 초기 페이지 생성 완료: {}", project.getGitlabPath());
+            } catch (Exception e) {
+                log.error("프로젝트 초기 페이지 생성 실패: {}", project.getGitlabPath(), e);
+            }
+
+            // API 명세서 자동 생성
+            int maxControllers = settingService.getInt(SystemSettingService.API_SPEC_MAX_CONTROLLERS, 0);
+            if (maxControllers != 0) {
+                try {
+                    String platform = project.getPlatform() != null ? project.getPlatform() : "springboot";
+                    switch (platform) {
+                        case "express" -> expressApiSpecService.initializeApiSpecForProject(spaceKey, project, maxControllers);
+                        case "django" -> djangoApiSpecService.initializeApiSpecForProject(spaceKey, project, maxControllers);
+                        default -> apiSpecInitializationService.initializeApiSpecForProject(spaceKey, project, maxControllers);
+                    }
+                    log.info("API 명세서 초기 생성 완료: {} (platform={}, max={})", project.getGitlabPath(), platform, maxControllers);
+                } catch (Exception e) {
+                    log.error("API 명세서 초기 생성 실패: {}", project.getGitlabPath(), e);
+                }
+            }
+        });
+    }
+
     private List<ConfluenceStructure.Page> createDefaultPages() {
         List<ConfluenceStructure.Page> pages = new ArrayList<>();
 
