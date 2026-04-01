@@ -1,6 +1,7 @@
 package com.hancom.ai.docpilot.docpilot.web;
 
 import com.hancom.ai.docpilot.docpilot.config.ConfigLoaderService;
+import com.hancom.ai.docpilot.docpilot.config.SystemSettingService;
 import com.hancom.ai.docpilot.docpilot.config.model.ConfluenceStructure;
 import com.hancom.ai.docpilot.docpilot.web.dto.ControllerSpecSummary;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,18 +18,21 @@ import java.util.List;
 public class PageController {
 
     private final ConfigLoaderService configLoaderService;
+    private final SystemSettingService settingService;
     private final ApiSpecService apiSpecService;
     private final WebhookEventStore webhookEventStore;
     private final ProjectApiController projectApiController;
 
-    @Value("${confluence.url}")
-    private String confluenceUrl;
+    @Value("${server.port:8080}")
+    private int serverPort;
 
     public PageController(ConfigLoaderService configLoaderService,
+                          SystemSettingService settingService,
                           ApiSpecService apiSpecService,
                           WebhookEventStore webhookEventStore,
                           ProjectApiController projectApiController) {
         this.configLoaderService = configLoaderService;
+        this.settingService = settingService;
         this.apiSpecService = apiSpecService;
         this.webhookEventStore = webhookEventStore;
         this.projectApiController = projectApiController;
@@ -54,7 +58,7 @@ public class PageController {
 
         model.addAttribute("menu", "api-specs");
         model.addAttribute("projects", projects);
-        model.addAttribute("confluenceUrl", getConfluenceBaseUrl());
+        model.addAttribute("confluenceUrl", settingService.get(SystemSettingService.CONFLUENCE_URL));
 
         if (projectId != null) {
             model.addAttribute("selectedProjectId", projectId);
@@ -80,10 +84,6 @@ public class PageController {
         model.addAttribute("totalCount", specs.size());
     }
 
-    private String getConfluenceBaseUrl() {
-        return confluenceUrl != null ? confluenceUrl : "";
-    }
-
     @GetMapping("/llm")
     public String llm(Model model) {
         model.addAttribute("menu", "llm");
@@ -99,19 +99,9 @@ public class PageController {
     }
 
     @GetMapping("/settings")
-    public String settings(Model model,
-                           @Value("${gitlab.url}") String gitlabUrl,
-                           @Value("${confluence.url}") String confUrl,
-                           @Value("${api-spec.template-page-title:}") String templatePageTitle,
-                           @Value("${api-spec.max-controllers:0}") int maxControllers,
-                           @Value("${server.port:8080}") int serverPort) {
+    public String settings(Model model) {
         model.addAttribute("menu", "settings");
-        model.addAttribute("gitlabUrl", gitlabUrl);
-        model.addAttribute("confluenceUrl", confUrl);
-        model.addAttribute("templatePageTitle", templatePageTitle);
-        model.addAttribute("maxControllers", maxControllers);
         model.addAttribute("webhookUrl", "http://localhost:" + serverPort + "/webhook/gitlab");
-        model.addAttribute("spaceKey", configLoaderService.getConfluenceStructure().getSpaceKey());
         return "settings";
     }
 }

@@ -3,6 +3,7 @@ package com.hancom.ai.docpilot.docpilot.webhook;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hancom.ai.docpilot.docpilot.config.ConfigLoaderService;
+import com.hancom.ai.docpilot.docpilot.config.SystemSettingService;
 import com.hancom.ai.docpilot.docpilot.config.model.ConfluenceStructure;
 import com.hancom.ai.docpilot.docpilot.entity.ApiPageMappingEntity;
 import com.hancom.ai.docpilot.docpilot.entity.ControllerPageMappingEntity;
@@ -14,7 +15,6 @@ import com.hancom.ai.docpilot.docpilot.source.gitlab.GitLabSourceService;
 import com.hancom.ai.docpilot.docpilot.target.confluence.ConfluenceTargetService;
 import com.hancom.ai.docpilot.docpilot.web.ProcessingStatusTracker;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -41,12 +41,10 @@ public class DjangoApiSpecService {
             "Permission", "IsAuthenticated", "AllowAny", "IsAdminUser"
     );
 
-    @Value("${api-spec.template-page-title:}")
-    private String templatePageTitle;
-
     private String cachedTemplateXml;
 
     private final ConfigLoaderService configLoaderService;
+    private final SystemSettingService settingService;
     private final GitLabSourceService gitLabSourceService;
     private final LLMRouter llmRouter;
     private final PromptTemplateService promptTemplateService;
@@ -57,6 +55,7 @@ public class DjangoApiSpecService {
     private final ApiPageMappingRepository apiPageMappingRepository;
 
     public DjangoApiSpecService(ConfigLoaderService configLoaderService,
+                                SystemSettingService settingService,
                                 GitLabSourceService gitLabSourceService,
                                 LLMRouter llmRouter,
                                 PromptTemplateService promptTemplateService,
@@ -66,6 +65,7 @@ public class DjangoApiSpecService {
                                 ControllerPageMappingRepository controllerPageMappingRepository,
                                 ApiPageMappingRepository apiPageMappingRepository) {
         this.configLoaderService = configLoaderService;
+        this.settingService = settingService;
         this.gitLabSourceService = gitLabSourceService;
         this.llmRouter = llmRouter;
         this.promptTemplateService = promptTemplateService;
@@ -1098,12 +1098,12 @@ public class DjangoApiSpecService {
 
     @SuppressWarnings("unchecked")
     private void loadTemplateFormat(String spaceKey) {
-        if (templatePageTitle == null || templatePageTitle.isBlank()) {
+        if (settingService.get(SystemSettingService.API_SPEC_TEMPLATE_PAGE_TITLE) == null || settingService.get(SystemSettingService.API_SPEC_TEMPLATE_PAGE_TITLE).isBlank()) {
             cachedTemplateXml = null;
             return;
         }
         try {
-            Map<String, Object> page = confluenceTargetService.getPage(spaceKey, templatePageTitle);
+            Map<String, Object> page = confluenceTargetService.getPage(spaceKey, settingService.get(SystemSettingService.API_SPEC_TEMPLATE_PAGE_TITLE));
             if (page == null) {
                 cachedTemplateXml = null;
                 return;

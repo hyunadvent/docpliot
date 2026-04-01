@@ -1,6 +1,7 @@
 package com.hancom.ai.docpilot.docpilot.web;
 
 import com.hancom.ai.docpilot.docpilot.config.ConfigLoaderService;
+import com.hancom.ai.docpilot.docpilot.config.SystemSettingService;
 import com.hancom.ai.docpilot.docpilot.config.model.ConfluenceStructure;
 import com.hancom.ai.docpilot.docpilot.target.confluence.ConfluenceTargetService;
 import com.hancom.ai.docpilot.docpilot.webhook.ApiSpecInitializationService;
@@ -8,7 +9,6 @@ import com.hancom.ai.docpilot.docpilot.webhook.DjangoApiSpecService;
 import com.hancom.ai.docpilot.docpilot.webhook.ExpressApiSpecService;
 import com.hancom.ai.docpilot.docpilot.webhook.ProjectInitializationService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -23,22 +23,22 @@ import java.util.Map;
 public class ProjectApiController {
 
     private final ConfigLoaderService configLoaderService;
+    private final SystemSettingService settingService;
     private final ConfluenceTargetService confluenceTargetService;
     private final ProjectInitializationService projectInitializationService;
     private final ApiSpecInitializationService apiSpecInitializationService;
     private final ExpressApiSpecService expressApiSpecService;
     private final DjangoApiSpecService djangoApiSpecService;
 
-    @Value("${api-spec.max-controllers:0}")
-    private int maxControllers;
-
     public ProjectApiController(ConfigLoaderService configLoaderService,
+                                SystemSettingService settingService,
                                 ConfluenceTargetService confluenceTargetService,
                                 ProjectInitializationService projectInitializationService,
                                 ApiSpecInitializationService apiSpecInitializationService,
                                 ExpressApiSpecService expressApiSpecService,
                                 DjangoApiSpecService djangoApiSpecService) {
         this.configLoaderService = configLoaderService;
+        this.settingService = settingService;
         this.confluenceTargetService = confluenceTargetService;
         this.projectInitializationService = projectInitializationService;
         this.apiSpecInitializationService = apiSpecInitializationService;
@@ -95,6 +95,7 @@ public class ProjectApiController {
         }
 
         // API 명세서 자동 생성 (max-controllers만큼)
+        int maxControllers = settingService.getInt(SystemSettingService.API_SPEC_MAX_CONTROLLERS, 0);
         if (maxControllers != 0) {
             try {
                 String platform = newProject.getPlatform() != null ? newProject.getPlatform() : "springboot";

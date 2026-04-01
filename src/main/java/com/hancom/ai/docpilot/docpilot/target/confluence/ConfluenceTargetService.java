@@ -1,7 +1,7 @@
 package com.hancom.ai.docpilot.docpilot.target.confluence;
 
+import com.hancom.ai.docpilot.docpilot.config.SystemSettingService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -18,16 +18,46 @@ import java.util.Map;
 @Service
 public class ConfluenceTargetService {
 
-    private final WebClient webClient;
+    private final WebClient.Builder webClientBuilder;
+    private final SystemSettingService settingService;
+    private volatile WebClient webClient;
+    private volatile String lastConfigHash;
 
-    public ConfluenceTargetService(
-            WebClient.Builder webClientBuilder,
-            @Value("${confluence.url}") String confluenceUrl,
-            @Value("${confluence.username:}") String username,
-            @Value("${confluence.password:}") String password,
-            @Value("${confluence.pat:}") String pat) {
+    public ConfluenceTargetService(WebClient.Builder webClientBuilder,
+                                   SystemSettingService settingService) {
+        this.webClientBuilder = webClientBuilder;
+        this.settingService = settingService;
+    }
 
-        WebClient.Builder builder = webClientBuilder
+    private WebClient getWebClient() {
+        String currentHash = buildConfigHash();
+        if (webClient == null || !currentHash.equals(lastConfigHash)) {
+            synchronized (this) {
+                currentHash = buildConfigHash();
+                if (webClient == null || !currentHash.equals(lastConfigHash)) {
+                    this.webClient = buildWebClient();
+                    this.lastConfigHash = currentHash;
+                    log.info("Confluence WebClient 재생성 완료");
+                }
+            }
+        }
+        return webClient;
+    }
+
+    private String buildConfigHash() {
+        return settingService.get(SystemSettingService.CONFLUENCE_URL) + "|"
+                + settingService.get(SystemSettingService.CONFLUENCE_USERNAME) + "|"
+                + settingService.get(SystemSettingService.CONFLUENCE_PASSWORD) + "|"
+                + settingService.get(SystemSettingService.CONFLUENCE_PAT);
+    }
+
+    private WebClient buildWebClient() {
+        String confluenceUrl = settingService.get(SystemSettingService.CONFLUENCE_URL);
+        String username = settingService.get(SystemSettingService.CONFLUENCE_USERNAME);
+        String password = settingService.get(SystemSettingService.CONFLUENCE_PASSWORD);
+        String pat = settingService.get(SystemSettingService.CONFLUENCE_PAT);
+
+        WebClient.Builder builder = webClientBuilder.clone()
                 .baseUrl(confluenceUrl + "/rest/api/content");
 
         if (pat != null && !pat.isBlank()) {
@@ -40,7 +70,17 @@ public class ConfluenceTargetService {
             log.info("Confluence 인증: Basic Auth");
         }
 
-        this.webClient = builder.build();
+        return builder.build();
+    }
+
+    /**
+     * 설정 변경 후 WebClient를 강제로 재생성합니다.
+     */
+    public void resetWebClient() {
+        synchronized (this) {
+            this.webClient = null;
+            this.lastConfigHash = null;
+        }
     }
 
     /**
@@ -49,7 +89,7 @@ public class ConfluenceTargetService {
     @SuppressWarnings("unchecked")
     public Map<String, Object> getPage(String spaceKey, String title) {
         try {
-            Map<String, Object> response = webClient.get()
+            Map<String, Object> response = getWebClient().get()
                     .uri(uriBuilder -> uriBuilder
                             .queryParam("spaceKey", spaceKey)
                             .queryParam("title", title)
@@ -117,7 +157,7 @@ public class ConfluenceTargetService {
 
         while (true) {
             int currentStart = start;
-            Map<String, Object> response = webClient.get()
+            Map<String, Object> response = getWebClient().get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/{parentId}/child/page")
                             .queryParam("expand", expand)
@@ -165,7 +205,7 @@ public class ConfluenceTargetService {
         Map<String, Object> requestBody = buildCreateBody(spaceKey, title, body, parentId);
 
         try {
-            Map<String, Object> created = webClient.post()
+            Map<String, Object> created = getWebClient().post()
                     .bodyValue(requestBody)
                     .retrieve()
                     .bodyToMono(Map.class)
@@ -186,7 +226,7 @@ public class ConfluenceTargetService {
     public void updatePage(Long pageId, String title, String body, int version) {
         Map<String, Object> requestBody = buildUpdateBody(title, body, version);
 
-        webClient.put()
+        getWebClient().put()
                 .uri("/{pageId}", pageId)
                 .bodyValue(requestBody)
                 .retrieve()
@@ -201,7 +241,7 @@ public class ConfluenceTargetService {
      */
     @SuppressWarnings("unchecked")
     public void appendToPage(Long pageId, String title, String additionalBody, int version) {
-        Map<String, Object> page = webClient.get()
+        Map<String, Object> page = getWebClient().get()
                 .uri("/{pageId}?expand=body.storage", pageId)
                 .retrieve()
                 .bodyToMono(Map.class)
@@ -254,7 +294,7 @@ public class ConfluenceTargetService {
     public Map<String, Object> getChildContent(Long parentId, String title) {
         // 폴더에서 먼저 검색
         try {
-            Map<String, Object> folderResponse = webClient.get()
+            Map<String, Object> folderResponse = getWebClient().get()
                     .uri("/{parentId}/child/folder", parentId)
                     .retrieve()
                     .bodyToMono(Map.class)
@@ -283,7 +323,7 @@ public class ConfluenceTargetService {
     @SuppressWarnings("unchecked")
     public String getSpaceName(String spaceKey) {
         try {
-            Map<String, Object> space = webClient.get()
+            Map<String, Object> space = getWebClient().get()
                     .uri(uriBuilder -> uriBuilder
                             .replacePath("/wiki/rest/api/space/" + spaceKey)
                             .build())
@@ -303,7 +343,7 @@ public class ConfluenceTargetService {
      */
     @SuppressWarnings("unchecked")
     private Long getSpaceHomepageId(String spaceKey) {
-        Map<String, Object> space = webClient.get()
+        Map<String, Object> space = getWebClient().get()
                 .uri(uriBuilder -> uriBuilder
                         .replacePath("/wiki/rest/api/space/" + spaceKey)
                         .queryParam("expand", "homepage")
@@ -412,7 +452,7 @@ public class ConfluenceTargetService {
         );
 
         try {
-            webClient.post()
+            getWebClient().post()
                     .uri("/{pageId}/property", pageId)
                     .bodyValue(property)
                     .retrieve()
@@ -434,7 +474,7 @@ public class ConfluenceTargetService {
     private void updatePageWidthNarrow(Long pageId) {
         try {
             // 기존 속성 버전 조회
-            Map<String, Object> existing = webClient.get()
+            Map<String, Object> existing = getWebClient().get()
                     .uri("/{pageId}/property/content-appearance-published", pageId)
                     .retrieve()
                     .bodyToMono(Map.class)
@@ -449,7 +489,7 @@ public class ConfluenceTargetService {
                     "version", Map.of("number", currentVersion + 1)
             );
 
-            webClient.put()
+            getWebClient().put()
                     .uri("/{pageId}/property/content-appearance-published", pageId)
                     .bodyValue(property)
                     .retrieve()

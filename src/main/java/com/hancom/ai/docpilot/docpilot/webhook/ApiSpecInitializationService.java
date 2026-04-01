@@ -3,6 +3,7 @@ package com.hancom.ai.docpilot.docpilot.webhook;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hancom.ai.docpilot.docpilot.config.ConfigLoaderService;
+import com.hancom.ai.docpilot.docpilot.config.SystemSettingService;
 import com.hancom.ai.docpilot.docpilot.config.model.ConfluenceStructure;
 import com.hancom.ai.docpilot.docpilot.entity.ApiPageMappingEntity;
 import com.hancom.ai.docpilot.docpilot.entity.ControllerPageMappingEntity;
@@ -14,7 +15,6 @@ import com.hancom.ai.docpilot.docpilot.source.gitlab.GitLabSourceService;
 import com.hancom.ai.docpilot.docpilot.target.confluence.ConfluenceTargetService;
 import com.hancom.ai.docpilot.docpilot.web.ProcessingStatusTracker;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
@@ -36,16 +36,19 @@ public class ApiSpecInitializationService {
 
     private static final int MAX_APIS_PER_CONTROLLER = 25;
 
-    @Value("${api-spec.max-controllers:0}")
-    private int maxControllers;
+    private int getMaxControllers() {
+        return settingService.getInt(SystemSettingService.API_SPEC_MAX_CONTROLLERS, 0);
+    }
 
-    @Value("${api-spec.template-page-title:}")
-    private String templatePageTitle;
+    private String getTemplatePageTitle() {
+        return settingService.get(SystemSettingService.API_SPEC_TEMPLATE_PAGE_TITLE);
+    }
 
     /** 서버 시작 시 한 번 읽어서 캐싱하는 서식 템플릿 XML */
     private String cachedTemplateXml;
 
     private final ConfigLoaderService configLoaderService;
+    private final SystemSettingService settingService;
     private final GitLabSourceService gitLabSourceService;
     private final LLMRouter llmRouter;
     private final PromptTemplateService promptTemplateService;
@@ -56,6 +59,7 @@ public class ApiSpecInitializationService {
     private final ProcessingStatusTracker processingStatusTracker;
 
     public ApiSpecInitializationService(ConfigLoaderService configLoaderService,
+                                        SystemSettingService settingService,
                                         GitLabSourceService gitLabSourceService,
                                         LLMRouter llmRouter,
                                         PromptTemplateService promptTemplateService,
@@ -65,6 +69,7 @@ public class ApiSpecInitializationService {
                                         ApiPageMappingRepository apiPageMappingRepository,
                                         ProcessingStatusTracker processingStatusTracker) {
         this.configLoaderService = configLoaderService;
+        this.settingService = settingService;
         this.gitLabSourceService = gitLabSourceService;
         this.llmRouter = llmRouter;
         this.promptTemplateService = promptTemplateService;
@@ -110,7 +115,7 @@ public class ApiSpecInitializationService {
     }
 
     /**
-     * UI에서 프로젝트 추가 시 호출. 해당 프로젝트의 API 명세서를 maxControllers만큼 생성합니다.
+     * UI에서 프로젝트 추가 시 호출. 해당 프로젝트의 API 명세서를 getMaxControllers()만큼 생성합니다.
      */
     public void initializeApiSpecForProject(String spaceKey, ConfluenceStructure.ProjectMapping project, int maxCount) {
         try {
@@ -865,16 +870,16 @@ public class ApiSpecInitializationService {
      */
     @SuppressWarnings("unchecked")
     private void loadTemplateFormat(String spaceKey) {
-        if (templatePageTitle == null || templatePageTitle.isBlank()) {
+        if (getTemplatePageTitle() == null || getTemplatePageTitle().isBlank()) {
             log.info("서식 템플릿 페이지 미설정, 기본 프롬프트 사용");
             cachedTemplateXml = null;
             return;
         }
 
         try {
-            Map<String, Object> page = confluenceTargetService.getPage(spaceKey, templatePageTitle);
+            Map<String, Object> page = confluenceTargetService.getPage(spaceKey, getTemplatePageTitle());
             if (page == null) {
-                log.warn("서식 템플릿 페이지를 찾을 수 없음: '{}'", templatePageTitle);
+                log.warn("서식 템플릿 페이지를 찾을 수 없음: '{}'", getTemplatePageTitle());
                 cachedTemplateXml = null;
                 return;
             }
@@ -883,9 +888,9 @@ public class ApiSpecInitializationService {
             Map<String, Object> storage = (Map<String, Object>) body.get("storage");
             cachedTemplateXml = (String) storage.get("value");
 
-            log.info("서식 템플릿 로드 완료: '{}' ({}자)", templatePageTitle, cachedTemplateXml.length());
+            log.info("서식 템플릿 로드 완료: '{}' ({}자)", getTemplatePageTitle(), cachedTemplateXml.length());
         } catch (Exception e) {
-            log.error("서식 템플릿 로드 실패: '{}'", templatePageTitle, e);
+            log.error("서식 템플릿 로드 실패: '{}'", getTemplatePageTitle(), e);
             cachedTemplateXml = null;
         }
     }

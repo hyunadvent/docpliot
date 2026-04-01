@@ -1,10 +1,10 @@
 package com.hancom.ai.docpilot.docpilot.webhook;
 
 import com.hancom.ai.docpilot.docpilot.config.ConfigLoaderService;
+import com.hancom.ai.docpilot.docpilot.config.SystemSettingService;
 import com.hancom.ai.docpilot.docpilot.web.WebhookEventStore;
 import com.hancom.ai.docpilot.docpilot.web.dto.WebhookEvent;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,16 +22,16 @@ public class GitLabWebhookController {
     private final ConfigLoaderService configLoaderService;
     private final DocumentPipelineService documentPipelineService;
     private final WebhookEventStore webhookEventStore;
-
-    @Value("${gitlab.webhook-secret}")
-    private String webhookSecret;
+    private final SystemSettingService settingService;
 
     public GitLabWebhookController(ConfigLoaderService configLoaderService,
                                    DocumentPipelineService documentPipelineService,
-                                   WebhookEventStore webhookEventStore) {
+                                   WebhookEventStore webhookEventStore,
+                                   SystemSettingService settingService) {
         this.configLoaderService = configLoaderService;
         this.documentPipelineService = documentPipelineService;
         this.webhookEventStore = webhookEventStore;
+        this.settingService = settingService;
     }
 
     @PostMapping("/gitlab")
@@ -41,6 +41,7 @@ public class GitLabWebhookController {
             @RequestBody Map<String, Object> payload) {
 
         // 1. 토큰 검증
+        String webhookSecret = settingService.get(SystemSettingService.GITLAB_WEBHOOK_SECRET);
         if (token == null || !token.equals(webhookSecret)) {
             log.warn("Webhook 토큰 불일치: received=[{}], expected=[{}]", token, webhookSecret);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)

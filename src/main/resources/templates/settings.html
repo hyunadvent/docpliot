@@ -26,63 +26,260 @@
     <div class="row g-3 mb-4">
         <div class="col-md-6">
             <div class="stat-card h-100">
-                <h6 class="mb-3"><i class="bi bi-git"></i> GitLab</h6>
-                <table class="table table-sm mb-0">
-                    <tr>
-                        <td class="text-muted" style="width: 120px;">URL</td>
-                        <td><code th:text="${gitlabUrl}"></code></td>
-                    </tr>
-                </table>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0"><i class="bi bi-git"></i> GitLab</h6>
+                    <button class="btn btn-outline-primary btn-sm" onclick="toggleEdit('gitlab')">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                </div>
+                <!-- 보기 모드 -->
+                <div id="gitlab-display">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <td class="text-muted" style="width: 130px;">URL</td>
+                            <td><code id="disp-gitlab-url">-</code></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Private Token</td>
+                            <td><code id="disp-gitlab-token">-</code></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Webhook Secret</td>
+                            <td><code id="disp-gitlab-webhook-secret">-</code></td>
+                        </tr>
+                    </table>
+                </div>
+                <!-- 편집 모드 -->
+                <div id="gitlab-edit" style="display: none;">
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm text-muted mb-1">URL</label>
+                        <input type="text" class="form-control form-control-sm" id="edit-gitlab-url">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm text-muted mb-1">Private Token</label>
+                        <input type="text" class="form-control form-control-sm" id="edit-gitlab-token">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm text-muted mb-1">Webhook Secret</label>
+                        <input type="text" class="form-control form-control-sm" id="edit-gitlab-webhook-secret">
+                    </div>
+                    <div class="d-flex gap-1 mt-2">
+                        <button class="btn btn-primary btn-sm" onclick="saveSettings('gitlab')">저장</button>
+                        <button class="btn btn-secondary btn-sm" onclick="toggleEdit('gitlab')">취소</button>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="col-md-6">
             <div class="stat-card h-100">
-                <h6 class="mb-3"><i class="bi bi-journal-text"></i> Confluence</h6>
-                <table class="table table-sm mb-0">
-                    <tr>
-                        <td class="text-muted" style="width: 120px;">URL</td>
-                        <td><code th:text="${confluenceUrl}"></code></td>
-                    </tr>
-                    <tr>
-                        <td class="text-muted">Space Key</td>
-                        <td><code th:text="${spaceKey}"></code></td>
-                    </tr>
-                </table>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0"><i class="bi bi-journal-text"></i> Confluence</h6>
+                    <button class="btn btn-outline-primary btn-sm" onclick="toggleEdit('confluence')">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                </div>
+                <!-- 보기 모드 -->
+                <div id="confluence-display">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <td class="text-muted" style="width: 130px;">URL</td>
+                            <td><code id="disp-confluence-url">-</code></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">사용자명</td>
+                            <td><code id="disp-confluence-username">-</code></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">비밀번호</td>
+                            <td><code id="disp-confluence-password">-</code></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">PAT</td>
+                            <td><code id="disp-confluence-pat">-</code></td>
+                        </tr>
+                    </table>
+                </div>
+                <!-- 편집 모드 -->
+                <div id="confluence-edit" style="display: none;">
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm text-muted mb-1">URL</label>
+                        <input type="text" class="form-control form-control-sm" id="edit-confluence-url">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm text-muted mb-1">사용자명</label>
+                        <input type="text" class="form-control form-control-sm" id="edit-confluence-username">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm text-muted mb-1">비밀번호</label>
+                        <input type="password" class="form-control form-control-sm" id="edit-confluence-password">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label form-label-sm text-muted mb-1">PAT (설정 시 Basic Auth 대신 사용)</label>
+                        <input type="text" class="form-control form-control-sm" id="edit-confluence-pat">
+                    </div>
+                    <div class="d-flex gap-1 mt-2">
+                        <button class="btn btn-primary btn-sm" onclick="saveSettings('confluence')">저장</button>
+                        <button class="btn btn-secondary btn-sm" onclick="toggleEdit('confluence')">취소</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- API 명세서 설정 -->
     <div class="stat-card mb-4">
-        <h6 class="mb-3"><i class="bi bi-sliders"></i> API 명세서 설정</h6>
-        <table class="table table-sm mb-0">
-            <tr>
-                <td class="text-muted" style="width: 200px;">서식 템플릿 페이지</td>
-                <td>
-                    <span th:if="${!#strings.isEmpty(templatePageTitle)}" th:text="${templatePageTitle}"></span>
-                    <span th:if="${#strings.isEmpty(templatePageTitle)}" class="text-muted">미설정 (기본 프롬프트 사용)</span>
-                </td>
-            </tr>
-            <tr>
-                <td class="text-muted">Controller 처리 제한</td>
-                <td>
-                    <span th:if="${maxControllers == 0}">제한 없음 (전체)</span>
-                    <span th:unless="${maxControllers == 0}" th:text="${maxControllers} + '개'"></span>
-                </td>
-            </tr>
-        </table>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0"><i class="bi bi-sliders"></i> API 명세서 설정</h6>
+            <button class="btn btn-outline-primary btn-sm" onclick="toggleEdit('apispec')">
+                <i class="bi bi-pencil"></i>
+            </button>
+        </div>
+        <!-- 보기 모드 -->
+        <div id="apispec-display">
+            <table class="table table-sm mb-0">
+                <tr>
+                    <td class="text-muted" style="width: 200px;">서식 템플릿 페이지</td>
+                    <td><code id="disp-apispec-template">-</code></td>
+                </tr>
+                <tr>
+                    <td class="text-muted">Controller 처리 제한</td>
+                    <td><code id="disp-apispec-max-controllers">-</code></td>
+                </tr>
+            </table>
+        </div>
+        <!-- 편집 모드 -->
+        <div id="apispec-edit" style="display: none;">
+            <div class="mb-2">
+                <label class="form-label form-label-sm text-muted mb-1">서식 템플릿 페이지 제목</label>
+                <input type="text" class="form-control form-control-sm" id="edit-apispec-template" placeholder="비워두면 기본 프롬프트 사용">
+            </div>
+            <div class="mb-2">
+                <label class="form-label form-label-sm text-muted mb-1">Controller 처리 제한 (0 = 제한 없음)</label>
+                <input type="number" class="form-control form-control-sm" id="edit-apispec-max-controllers" min="0">
+            </div>
+            <div class="d-flex gap-1 mt-2">
+                <button class="btn btn-primary btn-sm" onclick="saveSettings('apispec')">저장</button>
+                <button class="btn btn-secondary btn-sm" onclick="toggleEdit('apispec')">취소</button>
+            </div>
+        </div>
     </div>
 
     <div class="stat-card">
-        <h6><i class="bi bi-info-circle"></i> 설정 변경 안내</h6>
+        <h6><i class="bi bi-info-circle"></i> 안내</h6>
         <ul class="mb-0" style="font-size: 14px;">
-            <li>GitLab/Confluence 연결 정보는 <code>application.yml</code> 파일에서 변경합니다.</li>
-            <li>API 명세서 설정은 <code>application.yml</code>의 <code>api-spec</code> 섹션에서 변경합니다.</li>
-            <li>설정 변경 후 서버를 재시작해야 반영됩니다.</li>
+            <li>각 카드의 <i class="bi bi-pencil"></i> 버튼을 클릭하면 설정을 수정할 수 있습니다.</li>
+            <li>설정 변경은 저장 즉시 반영되며 서버 재시작이 필요하지 않습니다.</li>
+            <li>비밀번호와 토큰은 마스킹 처리되어 표시됩니다.</li>
         </ul>
     </div>
 
+    <!-- 알림 토스트 -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999">
+        <div id="toast" class="toast" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto" id="toastTitle">알림</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toastBody"></div>
+        </div>
+    </div>
+
     <script>
+        let settingsData = {};
+
+        function maskValue(value) {
+            if (!value || value.length <= 4) return value || '-';
+            return value.substring(0, 4) + '****';
+        }
+
+        function displayValue(value, placeholder) {
+            return value || placeholder || '-';
+        }
+
+        function loadSettings() {
+            fetch('/api/settings')
+                .then(r => r.json())
+                .then(data => {
+                    settingsData = data;
+
+                    // GitLab
+                    document.getElementById('disp-gitlab-url').textContent = displayValue(data['gitlab.url']);
+                    document.getElementById('disp-gitlab-token').textContent = maskValue(data['gitlab.private-token']);
+                    document.getElementById('disp-gitlab-webhook-secret').textContent = maskValue(data['gitlab.webhook-secret']);
+
+                    // Confluence
+                    document.getElementById('disp-confluence-url').textContent = displayValue(data['confluence.url']);
+                    document.getElementById('disp-confluence-username').textContent = displayValue(data['confluence.username']);
+                    document.getElementById('disp-confluence-password').textContent = maskValue(data['confluence.password']);
+                    document.getElementById('disp-confluence-pat').textContent = data['confluence.pat'] ? maskValue(data['confluence.pat']) : '미설정';
+
+                    // API 명세서
+                    const template = data['api-spec.template-page-title'];
+                    document.getElementById('disp-apispec-template').textContent = template || '미설정 (기본 프롬프트 사용)';
+                    const maxCtrl = data['api-spec.max-controllers'];
+                    document.getElementById('disp-apispec-max-controllers').textContent =
+                        (!maxCtrl || maxCtrl === '0') ? '제한 없음 (전체)' : maxCtrl + '개';
+                })
+                .catch(() => showToast('오류', '설정을 불러올 수 없습니다.', false));
+        }
+
+        function toggleEdit(section) {
+            const display = document.getElementById(section + '-display');
+            const edit = document.getElementById(section + '-edit');
+            const isEditing = edit.style.display !== 'none';
+
+            if (!isEditing) {
+                // 편집 모드로 전환 시 현재 값 채우기
+                if (section === 'gitlab') {
+                    document.getElementById('edit-gitlab-url').value = settingsData['gitlab.url'] || '';
+                    document.getElementById('edit-gitlab-token').value = settingsData['gitlab.private-token'] || '';
+                    document.getElementById('edit-gitlab-webhook-secret').value = settingsData['gitlab.webhook-secret'] || '';
+                } else if (section === 'confluence') {
+                    document.getElementById('edit-confluence-url').value = settingsData['confluence.url'] || '';
+                    document.getElementById('edit-confluence-username').value = settingsData['confluence.username'] || '';
+                    document.getElementById('edit-confluence-password').value = settingsData['confluence.password'] || '';
+                    document.getElementById('edit-confluence-pat').value = settingsData['confluence.pat'] || '';
+                } else if (section === 'apispec') {
+                    document.getElementById('edit-apispec-template').value = settingsData['api-spec.template-page-title'] || '';
+                    document.getElementById('edit-apispec-max-controllers').value = settingsData['api-spec.max-controllers'] || '0';
+                }
+            }
+
+            display.style.display = isEditing ? '' : 'none';
+            edit.style.display = isEditing ? 'none' : '';
+        }
+
+        function saveSettings(section) {
+            let data = {};
+
+            if (section === 'gitlab') {
+                data['gitlab.url'] = document.getElementById('edit-gitlab-url').value;
+                data['gitlab.private-token'] = document.getElementById('edit-gitlab-token').value;
+                data['gitlab.webhook-secret'] = document.getElementById('edit-gitlab-webhook-secret').value;
+            } else if (section === 'confluence') {
+                data['confluence.url'] = document.getElementById('edit-confluence-url').value;
+                data['confluence.username'] = document.getElementById('edit-confluence-username').value;
+                data['confluence.password'] = document.getElementById('edit-confluence-password').value;
+                data['confluence.pat'] = document.getElementById('edit-confluence-pat').value;
+            } else if (section === 'apispec') {
+                data['api-spec.template-page-title'] = document.getElementById('edit-apispec-template').value;
+                data['api-spec.max-controllers'] = document.getElementById('edit-apispec-max-controllers').value;
+            }
+
+            fetch('/api/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(r => r.json())
+            .then(result => {
+                showToast('성공', result.message, true);
+                toggleEdit(section);
+                loadSettings();
+            })
+            .catch(() => showToast('오류', '저장에 실패했습니다.', false));
+        }
+
         function copyWebhookUrl() {
             const input = document.getElementById('webhookUrl');
             input.select();
@@ -92,6 +289,18 @@
                 setTimeout(() => { btn.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 2000);
             });
         }
+
+        function showToast(title, message, success) {
+            document.getElementById('toastTitle').textContent = title;
+            document.getElementById('toastBody').textContent = message;
+            const toastEl = document.getElementById('toast');
+            toastEl.classList.remove('text-bg-success', 'text-bg-danger');
+            toastEl.classList.add(success ? 'text-bg-success' : 'text-bg-danger');
+            new bootstrap.Toast(toastEl).show();
+        }
+
+        // 페이지 로드 시 설정 불러오기
+        loadSettings();
     </script>
 
 </div>
