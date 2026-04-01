@@ -101,9 +101,10 @@ docpilot/
         │
         ├── config/                              # 설정 및 보안
         │   ├── SecurityConfig.java              # Spring Security 필터 체인
-        │   ├── WebClientConfig.java             # WebClient (10s 연결, 60s 읽기 타임아웃)
+        │   ├── WebClientConfig.java             # WebClient (10s 연결, 180s 읽기 타임아웃)
         │   ├── AsyncConfig.java                 # @EnableAsync
         │   ├── ConfigLoaderService.java         # JSON 설정 파일 로드/저장/관리
+        │   ├── SystemSettingService.java        # 시스템 설정 DB 관리 (동적 반영)
         │   ├── DataInitializer.java             # 기본 admin 계정 자동 생성
         │   ├── CustomUserDetailsService.java    # Spring Security UserDetailsService
         │   └── model/
@@ -114,13 +115,15 @@ docpilot/
         │   ├── UserEntity.java                  # 사용자 계정
         │   ├── WebhookEventEntity.java          # 웹훅 이벤트 이력
         │   ├── ControllerPageMappingEntity.java # Controller ↔ Confluence 페이지 매핑
-        │   └── ApiPageMappingEntity.java        # API 엔드포인트 ↔ Confluence 페이지 매핑
+        │   ├── ApiPageMappingEntity.java        # API 엔드포인트 ↔ Confluence 페이지 매핑
+        │   └── SystemSettingEntity.java         # 시스템 설정 (key-value)
         │
         ├── repository/                          # Spring Data JPA Repository
         │   ├── UserRepository.java
         │   ├── WebhookEventRepository.java
         │   ├── ControllerPageMappingRepository.java
-        │   └── ApiPageMappingRepository.java
+        │   ├── ApiPageMappingRepository.java
+        │   └── SystemSettingRepository.java
         │
         ├── llm/                                 # LLM 연동
         │   ├── LLMRouter.java                   # Claude/OpenAI 라우팅
@@ -150,10 +153,11 @@ docpilot/
             ├── LlmApiController.java            # REST /api/llm/*
             ├── ProjectApiController.java        # REST /api/projects/*
             ├── ApiSpecApiController.java        # REST /api/api-specs/*
+            ├── SettingsApiController.java       # REST /api/settings/*
             ├── DashboardService.java            # 대시보드 비즈니스 로직
             ├── ApiSpecService.java              # API 명세서 현황 조회
             ├── WebhookEventStore.java           # 웹훅 이벤트 저장
-            ├── ProcessingStatusTracker.java     # 동시 처리 제한 (최대 2개)
+            ├── ProcessingStatusTracker.java     # 동시 처리 제한 + 진행 상태 추적
             └── dto/                             # DTO 클래스
 ```
 
@@ -181,11 +185,12 @@ java -jar target/docpilot-0.0.1-SNAPSHOT.jar
 
 ### 초기 설정
 
-1. `src/main/resources/application.yml`에 GitLab, Confluence 접속 정보 입력
+1. `src/main/resources/application.yml`에 GitLab, Confluence 접속 정보 입력 (최초 1회)
 2. `config/llm_config.json`에 LLM API Key 설정 (`active: true`인 항목이 정확히 1개)
 3. `config/page_structure_config.json`에 프로젝트 매핑 설정
 4. 서버 실행 후 `http://localhost:8001` 접속
 5. 기본 관리자 계정: `admin` / `admin`
+6. 이후 GitLab/Confluence/API 명세서 설정은 **시스템 설정 페이지**에서 변경 가능 (서버 재시작 불필요)
 
 ---
 
@@ -325,10 +330,10 @@ Confluence 페이지 구조와 GitLab 프로젝트 매핑을 정의합니다.
 | 페이지 | 경로 | 설명 |
 |--------|------|------|
 | 대시보드 | `/` | 프로젝트 현황, 연결 상태, Controller 처리 통계 |
-| 프로젝트 관리 | `/projects` | 프로젝트 CRUD, 공통 라이브러리 관리, 플랫폼 선택 |
-| API 명세서 현황 | `/api-specs` | Controller별 처리 상태, 개별 재생성, Confluence 동기화 |
+| 프로젝트 관리 | `/projects` | 프로젝트 CRUD, 공통 라이브러리 관리, 트리거 브랜치 편집 |
+| API 명세서 현황 | `/api-specs` | Controller별 처리 상태 + 실시간 진행률, 개별 재생성, Confluence 동기화 |
 | LLM 설정 | `/llm` | LLM 제공자 관리, API Key 설정, 활성 LLM 전환 (관리자) |
-| 시스템 설정 | `/settings` | 시스템 설정 관리 (관리자) |
+| 시스템 설정 | `/settings` | GitLab/Confluence/API 명세서 설정 인라인 편집, 즉시 반영 (관리자) |
 | 웹훅 이벤트 | `/webhook-logs` | GitLab 웹훅 수신 이력 조회 |
 | 사용자 관리 | `/admin/users` | 사용자 승인/삭제 (관리자) |
 
@@ -368,13 +373,33 @@ Confluence 페이지 구조와 GitLab 프로젝트 매핑을 정의합니다.
 | PUT | `/api/projects/common-libraries/{id}` | 라이브러리 수정 |
 | DELETE | `/api/projects/common-libraries/{id}` | 라이브러리 삭제 |
 
+### 브랜치 설정 (`/api/projects/branches`)
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/projects/branches` | 브랜치 설정 조회 |
+| PUT | `/api/projects/branches` | 트리거/무시 브랜치 수정 |
+
+### Confluence Space (`/api/projects/space-name`)
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/projects/space-name` | Confluence Space 이름 조회 (API로 실시간 조회) |
+
 ### API 명세서 (`/api/api-specs`)
 
 | 메서드 | 경로 | 설명 |
 |--------|------|------|
-| GET | `/api/api-specs/processing` | 현재 처리 중인 Controller 목록 |
+| GET | `/api/api-specs/processing` | 현재 처리 중인 Controller 목록 + 진행률 (completedApis, totalApis, currentApiName) |
 | POST | `/api/api-specs/sync` | DB ↔ Confluence 수동 동기화 |
 | POST | `/api/api-specs/regenerate` | 특정 Controller API 명세서 재생성 |
+
+### 시스템 설정 (`/api/settings`) - 관리자 전용
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/settings` | 전체 시스템 설정 조회 |
+| PUT | `/api/settings` | 시스템 설정 일괄 수정 (즉시 반영, 서버 재시작 불필요) |
 
 ### LLM 설정 (`/api/llm`) - 관리자 전용
 
@@ -488,7 +513,8 @@ GitLab Push/MR
 | Claude | `https://api.anthropic.com/v1/messages` | `x-api-key: {key}` |
 | OpenAI | `https://api.openai.com/v1/chat/completions` | `Authorization: Bearer {key}` |
 
-- `max_tokens: 4096`
+- `max_tokens: 16384` (기존 4096에서 4배 증가)
+- **자동 연속 생성**: `stop_reason`(Claude) / `finish_reason`(OpenAI)이 토큰 한도 도달인 경우, 이전 응답을 assistant 메시지로 추가하여 이어서 생성 (최대 4회, 약 65,536 토큰까지)
 - LLM 설정은 UI에서 런타임 전환 가능
 - API Key는 UI 응답에서 마스킹 처리 (앞 4자 + *** + 뒤 4자)
 
@@ -526,8 +552,25 @@ H2 임베디드 데이터베이스 사용 (파일 기반: `./data/docpilot`)
 | `webhook_events` | 웹훅 이벤트 이력 | eventType, projectName, branch, status |
 | `controller_page_mappings` | Controller ↔ Confluence 매핑 | gitlabProjectId, controllerPath, confluencePageId, processed, apiCount |
 | `api_page_mappings` | API ↔ Confluence 매핑 | methodName, httpMethod, path, confluencePageId |
+| `system_settings` | 시스템 설정 (key-value) | setting_key(PK), setting_value, description |
 
 - H2 콘솔: `http://localhost:8001/h2-console` (ID: `sa`, 비밀번호 없음)
+
+### 시스템 설정 (`system_settings`)
+
+서버 최초 기동 시 `application.yml`의 값이 DB에 자동 적재되며, 이후 시스템 설정 페이지에서 수정 가능합니다.
+
+| 설정 키 | 설명 | 변경 시 동작 |
+|---------|------|-------------|
+| `gitlab.url` | GitLab 서버 URL | GitLab API 클라이언트 재생성 |
+| `gitlab.private-token` | GitLab Private Token | GitLab API 클라이언트 재생성 |
+| `gitlab.webhook-secret` | Webhook 검증용 시크릿 | 다음 웹훅 수신 시 즉시 적용 |
+| `confluence.url` | Confluence 서버 URL | Confluence WebClient 재생성 |
+| `confluence.username` | Confluence 사용자명 | Confluence WebClient 재생성 |
+| `confluence.password` | Confluence 비밀번호 | Confluence WebClient 재생성 |
+| `confluence.pat` | Confluence PAT | Confluence WebClient 재생성 |
+| `api-spec.template-page-title` | 서식 템플릿 페이지 제목 | 다음 API 명세서 생성 시 적용 |
+| `api-spec.max-controllers` | Controller 처리 제한 수 | 다음 프로젝트 추가 시 적용 |
 
 ---
 
@@ -587,8 +630,13 @@ H2 임베디드 데이터베이스 사용 (파일 기반: `./data/docpilot`)
 - `DocumentPipelineService.cleanLlmResponse()`가 마크다운 코드블록 마커, XML 선언을 제거
 - 웹훅 처리는 반드시 `@Async` — 즉시 200 OK 반환
 - Confluence 인증: PAT(`Bearer`) 설정 시 우선, 미설정 시 Basic Auth
-- WebClient 타임아웃: 연결 10초, 읽기 60초 (`WebClientConfig`)
+- WebClient 타임아웃: 연결 10초, 읽기 180초 (`WebClientConfig`)
 - 페이지 제목의 `{project_name}`은 런타임에 실제 프로젝트명으로 치환
 - `ConfluenceTargetService.ensureParentPages()`가 부모 페이지 계층을 자동 생성
 - 동일 제목 페이지 존재 시 `createPage()`에서 자동으로 기존 페이지 업데이트
 - 동시 API 명세서 재생성은 최대 2개까지 (`ProcessingStatusTracker`)
+- 시스템 설정(GitLab/Confluence/API 명세서)은 DB 기반으로 관리, 서버 시작 시 `application.yml` → DB 초기 적재, 이후 UI에서 변경 시 즉시 반영 (서버 재시작 불필요)
+- 설정 변경 시 GitLab API 클라이언트와 Confluence WebClient가 자동으로 재생성됨
+- 프로젝트 추가 시 Confluence 페이지 생성 및 API 명세서 생성은 비동기(`CompletableFuture.runAsync`) 처리
+- 프로젝트 삭제 시 DB의 `controller_page_mappings`, `api_page_mappings` 레코드도 함께 삭제
+- API 명세서 생성 진행 중 실시간 진행률 추적 (완료 수/전체 수, 현재 생성 중인 API 이름)
