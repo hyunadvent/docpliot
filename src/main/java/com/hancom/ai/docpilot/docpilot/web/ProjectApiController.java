@@ -2,6 +2,7 @@ package com.hancom.ai.docpilot.docpilot.web;
 
 import com.hancom.ai.docpilot.docpilot.config.ConfigLoaderService;
 import com.hancom.ai.docpilot.docpilot.config.model.ConfluenceStructure;
+import com.hancom.ai.docpilot.docpilot.target.confluence.ConfluenceTargetService;
 import com.hancom.ai.docpilot.docpilot.webhook.ApiSpecInitializationService;
 import com.hancom.ai.docpilot.docpilot.webhook.DjangoApiSpecService;
 import com.hancom.ai.docpilot.docpilot.webhook.ExpressApiSpecService;
@@ -22,6 +23,7 @@ import java.util.Map;
 public class ProjectApiController {
 
     private final ConfigLoaderService configLoaderService;
+    private final ConfluenceTargetService confluenceTargetService;
     private final ProjectInitializationService projectInitializationService;
     private final ApiSpecInitializationService apiSpecInitializationService;
     private final ExpressApiSpecService expressApiSpecService;
@@ -31,11 +33,13 @@ public class ProjectApiController {
     private int maxControllers;
 
     public ProjectApiController(ConfigLoaderService configLoaderService,
+                                ConfluenceTargetService confluenceTargetService,
                                 ProjectInitializationService projectInitializationService,
                                 ApiSpecInitializationService apiSpecInitializationService,
                                 ExpressApiSpecService expressApiSpecService,
                                 DjangoApiSpecService djangoApiSpecService) {
         this.configLoaderService = configLoaderService;
+        this.confluenceTargetService = confluenceTargetService;
         this.projectInitializationService = projectInitializationService;
         this.apiSpecInitializationService = apiSpecInitializationService;
         this.expressApiSpecService = expressApiSpecService;
@@ -257,6 +261,13 @@ public class ProjectApiController {
         structure.setCommonLibraries(libs);
         configLoaderService.saveConfluenceStructure(structure);
         return ResponseEntity.ok(Map.of("message", "공통 라이브러리가 삭제되었습니다."));
+    }
+
+    @GetMapping("/space-name")
+    public ResponseEntity<Map<String, String>> getSpaceName() {
+        String spaceKey = configLoaderService.getConfluenceStructure().getSpaceKey();
+        String spaceName = confluenceTargetService.getSpaceName(spaceKey);
+        return ResponseEntity.ok(Map.of("name", spaceName, "key", spaceKey));
     }
 
     @GetMapping("/branches")

@@ -1,5 +1,6 @@
 {
   "projects" : [ {
+    "platform" : "springboot",
     "pages" : [ {
       "id" : "service_overview",
       "title" : "서비스 개요 및 구성도",
@@ -36,34 +37,6 @@
     "confluence_parent_pages" : [ "프로젝트", "한컴 챗봇", "[한컴 챗봇 백엔드]" ],
     "page_title_prefix" : "[한컴 챗봇 백엔드]",
     "created_by" : null,
-    "dependency_projects" : null
-  }, {
-    "pages" : [ {
-      "id" : "service_overview",
-      "title" : "서비스 개요 및 구성도",
-      "description" : null,
-      "trigger" : [ "push", "merge_request" ],
-      "auto_generate" : true,
-      "prompt_template" : "service_overview",
-      "source_file" : "README.md",
-      "target_files" : [ "README.md" ],
-      "append_mode" : false
-    }, {
-      "id" : "api_spec",
-      "title" : "API 명세서",
-      "description" : null,
-      "trigger" : [ "push", "merge_request" ],
-      "auto_generate" : true,
-      "prompt_template" : "api_spec",
-      "source_file" : null,
-      "target_files" : [ "**/controller/**", "**/routes/**", "**/controllers/**" ],
-      "append_mode" : false
-    } ],
-    "gitlab_project_id" : 278,
-    "gitlab_path" : "platform-api/chatbot/ms-chatbot-builder",
-    "confluence_parent_pages" : [ "프로젝트", "한컴 챗봇빌더", "[한컴 챗봇빌더 백엔드]" ],
-    "page_title_prefix" : "[한컴 챗봇빌더 백엔드]",
-    "created_by" : "admin",
     "dependency_projects" : null
   } ],
   "branches" : {

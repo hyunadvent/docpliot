@@ -11,28 +11,34 @@
 
     <!-- Space Key & 브랜치 설정 -->
     <div class="row g-3 mb-4">
-        <div class="col-md-4">
-            <div class="stat-card">
+        <div class="col-md-6">
+            <div class="stat-card h-100">
                 <h6 class="mb-2"><i class="bi bi-cloud"></i> Confluence Space</h6>
-                <code th:text="${spaceKey}" class="fs-6">-</code>
+                <span id="spaceName" class="fs-6 text-muted">불러오는 중...</span>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="stat-card">
-                <h6 class="mb-2"><i class="bi bi-signpost-split"></i> 트리거 브랜치</h6>
-                <span th:each="b : ${branches.triggerBranches}">
-                    <span class="badge bg-primary" th:text="${b}"></span>
-                </span>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="stat-card">
-                <h6 class="mb-2"><i class="bi bi-skip-forward"></i> 무시 브랜치</h6>
-                <span th:each="b : ${branches.ignoreBranches}">
-                    <span class="badge bg-secondary" th:text="${b}"></span>
-                </span>
-                <div class="mt-2">
-                    <small class="text-muted">Skip 키워드: <code th:text="${options.skipKeyword}">-</code></small>
+        <div class="col-md-6">
+            <div class="stat-card h-100">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0"><i class="bi bi-signpost-split"></i> 트리거 브랜치</h6>
+                    <button class="btn btn-outline-primary btn-sm" id="triggerBranchEditBtn" onclick="toggleTriggerBranchEdit()">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                </div>
+                <div id="triggerBranchDisplay">
+                    <span th:each="b : ${branches.triggerBranches}">
+                        <span class="badge bg-primary" th:text="${b}"></span>
+                    </span>
+                </div>
+                <div id="triggerBranchEdit" style="display: none;">
+                    <input type="text" class="form-control form-control-sm" id="triggerBranchInput"
+                           th:value="${#strings.listJoin(branches.triggerBranches, ', ')}"
+                           placeholder="main, develop, release/*">
+                    <small class="text-muted">쉼표(,)로 구분하여 입력</small>
+                    <div class="mt-2 d-flex gap-1">
+                        <button class="btn btn-primary btn-sm" onclick="saveTriggerBranches()">저장</button>
+                        <button class="btn btn-secondary btn-sm" onclick="toggleTriggerBranchEdit()">취소</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -42,7 +48,7 @@
     <div class="stat-card mb-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h6 class="mb-0"><i class="bi bi-box-seam"></i> 공통 라이브러리</h6>
-            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#libraryModal" onclick="openAddLibrary()">
+            <button class="btn btn-outline-primary btn-sm" style="min-width: 110px;" data-bs-toggle="modal" data-bs-target="#libraryModal" onclick="openAddLibrary()">
                 <i class="bi bi-plus-lg"></i> 라이브러리 추가
             </button>
         </div>
@@ -58,7 +64,7 @@
                 <th>프로젝트 ID</th>
                 <th>GitLab 경로</th>
                 <th>설명</th>
-                <th style="width: 80px;">관리</th>
+                <th style="width: 120px;">관리</th>
             </tr>
             </thead>
             <tbody>
@@ -67,30 +73,30 @@
                 <td class="fw-medium" th:text="${lib.gitlabPath}"></td>
                 <td><small class="text-muted" th:text="${lib.description}"></small></td>
                 <td>
-                    <button class="btn btn-outline-primary btn-sm"
-                            th:attr="onclick='openEditLibrary(' + ${lib.gitlabProjectId} + ')'">
-                        <i class="bi bi-pencil"></i>
-                    </button>
-                    <button class="btn btn-outline-danger btn-sm"
-                            th:attr="onclick='deleteLibrary(' + ${lib.gitlabProjectId} + ')'">
-                        <i class="bi bi-trash"></i>
-                    </button>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-outline-primary btn-sm"
+                                th:attr="onclick='openEditLibrary(' + ${lib.gitlabProjectId} + ')'">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm"
+                                th:attr="onclick='deleteLibrary(' + ${lib.gitlabProjectId} + ')'">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>
             </tbody>
         </table>
     </div>
 
-    <!-- 프로젝트 추가 버튼 -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h6 class="mb-0"><i class="bi bi-list-ul"></i> 프로젝트 목록</h6>
-        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#projectModal" onclick="openAddModal()">
-            <i class="bi bi-plus-lg"></i> 프로젝트 추가
-        </button>
-    </div>
-
     <!-- 프로젝트 목록 -->
-    <div class="table-card">
+    <div class="stat-card mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0"><i class="bi bi-list-ul"></i> 프로젝트 목록</h6>
+            <button class="btn btn-outline-primary btn-sm" style="min-width: 110px;" data-bs-toggle="modal" data-bs-target="#projectModal" onclick="openAddModal()">
+                <i class="bi bi-plus-lg"></i> 프로젝트 추가
+            </button>
+        </div>
         <table class="table table-hover mb-0">
             <thead>
             <tr>
@@ -241,6 +247,17 @@
     </div>
 
     <script>
+        // ===== Confluence Space 이름 조회 =====
+        fetch('/api/projects/space-name')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('spaceName').textContent = data.name;
+                document.getElementById('spaceName').classList.remove('text-muted');
+            })
+            .catch(() => {
+                document.getElementById('spaceName').textContent = '조회 실패';
+            });
+
         // ===== 공통 라이브러리 =====
         function openAddLibrary() {
             document.getElementById('libEditMode').value = 'add';
@@ -312,6 +329,40 @@
                     setTimeout(() => location.reload(), 1000);
                 })
                 .catch(err => showToast('오류', '삭제에 실패했습니다.', false));
+        }
+
+        // ===== 트리거 브랜치 =====
+        function toggleTriggerBranchEdit() {
+            const display = document.getElementById('triggerBranchDisplay');
+            const edit = document.getElementById('triggerBranchEdit');
+            const isEditing = edit.style.display !== 'none';
+            display.style.display = isEditing ? '' : 'none';
+            edit.style.display = isEditing ? 'none' : '';
+        }
+
+        function saveTriggerBranches() {
+            const input = document.getElementById('triggerBranchInput').value;
+            const branches = input.split(',').map(s => s.trim()).filter(s => s);
+
+            fetch('/api/projects/branches')
+                .then(r => r.json())
+                .then(current => {
+                    const data = {
+                        trigger_branches: branches,
+                        ignore_branches: current.ignore_branches || []
+                    };
+                    return fetch('/api/projects/branches', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                })
+                .then(r => r.json())
+                .then(result => {
+                    showToast('성공', result.message, true);
+                    setTimeout(() => location.reload(), 1000);
+                })
+                .catch(err => showToast('오류', '저장에 실패했습니다.', false));
         }
 
         // ===== 프로젝트 =====

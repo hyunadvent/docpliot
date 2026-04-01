@@ -42,7 +42,6 @@ public class PageController {
         model.addAttribute("menu", "projects");
         model.addAttribute("projects", projects);
         model.addAttribute("commonLibraries", structure.getCommonLibraries() != null ? structure.getCommonLibraries() : java.util.Collections.emptyList());
-        model.addAttribute("spaceKey", structure.getSpaceKey());
         model.addAttribute("branches", structure.getBranches());
         model.addAttribute("options", structure.getOptions());
         return "projects";

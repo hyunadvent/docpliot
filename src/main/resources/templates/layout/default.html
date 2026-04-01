@@ -59,12 +59,12 @@
         <!-- 사용자 정보 + 로그아웃 -->
         <div class="sidebar-footer">
             <div class="d-flex align-items-center justify-content-between">
-                <span style="color: #94a3b8; font-size: 13px;">
+                <span style="color: #ffffff; font-size: 15px;">
                     <i class="bi bi-person-circle"></i>
                     <span sec:authentication="name">user</span>
                 </span>
                 <form th:action="@{/logout}" method="post">
-                    <button type="submit" class="btn btn-sm btn-outline-secondary" style="font-size: 12px;">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary" style="font-size: 15px; color: #ffffff; border-color: #ffffff;">
                         <i class="bi bi-box-arrow-right"></i> 로그아웃
                     </button>
                 </form>

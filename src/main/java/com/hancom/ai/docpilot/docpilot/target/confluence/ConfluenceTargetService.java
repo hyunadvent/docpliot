@@ -278,6 +278,27 @@ public class ConfluenceTargetService {
     }
 
     /**
+     * 스페이스 이름을 조회합니다. 실패 시 spaceKey를 그대로 반환합니다.
+     */
+    @SuppressWarnings("unchecked")
+    public String getSpaceName(String spaceKey) {
+        try {
+            Map<String, Object> space = webClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .replacePath("/wiki/rest/api/space/" + spaceKey)
+                            .build())
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+            Object name = space != null ? space.get("name") : null;
+            return name != null ? (String) name : spaceKey;
+        } catch (Exception e) {
+            log.warn("스페이스 이름 조회 실패: key={}, error={}", spaceKey, e.getMessage());
+            return spaceKey;
+        }
+    }
+
+    /**
      * 스페이스 홈페이지 ID를 조회합니다.
      */
     @SuppressWarnings("unchecked")
