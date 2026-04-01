@@ -176,7 +176,7 @@ public class DjangoApiSpecService {
                              Long apiSpecPageId, String prefix, boolean forceUpdate) throws Exception {
         Long projectId = project.getGitlabProjectId();
 
-        processingStatusTracker.markProcessing(viewPath);
+        processingStatusTracker.markProcessing(viewPath, projectId);
         try {
             processViewInternal(spaceKey, project, viewPath, branch, apiSpecPageId, prefix, forceUpdate);
         } finally {
@@ -281,9 +281,15 @@ public class DjangoApiSpecService {
 
         int apiCount = 0;
         if (apis != null && apis.isArray()) {
+            int totalApis = Math.min(apis.size(), MAX_APIS_PER_VIEW);
+            processingStatusTracker.updateProgress(viewPath, 0, totalApis, "API 분석 준비 중...");
+
             for (JsonNode api : apis) {
                 if (apiCount >= MAX_APIS_PER_VIEW) break;
                 try {
+                    String apiDisplayName = getNodeText(api, "korean_name", getNodeText(api, "koreanName", getNodeText(api, "method_name", getNodeText(api, "methodName", "unknown"))));
+                    String apiName = prefix + "API - " + apiDisplayName;
+                    processingStatusTracker.updateProgress(viewPath, apiCount, totalApis, "API 페이지 생성: " + apiName);
                     processApiEndpoint(spaceKey, project, code, api,
                             controllerPageId, prefix, forceUpdate, mapping, viewPath, branch);
                     apiCount++;
@@ -1139,5 +1145,10 @@ public class DjangoApiSpecService {
     private Long toLong(Object value) {
         if (value instanceof Number) return ((Number) value).longValue();
         return Long.parseLong(value.toString());
+    }
+
+    private String getNodeText(JsonNode node, String field, String defaultValue) {
+        JsonNode child = node.get(field);
+        return child != null ? child.asText() : defaultValue;
     }
 }

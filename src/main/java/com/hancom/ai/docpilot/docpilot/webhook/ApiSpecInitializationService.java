@@ -356,7 +356,7 @@ public class ApiSpecInitializationService {
                                    Long apiSpecPageId, String prefix, boolean forceUpdate) throws Exception {
         Long projectId = project.getGitlabProjectId();
 
-        processingStatusTracker.markProcessing(controllerPath);
+        processingStatusTracker.markProcessing(controllerPath, projectId);
         try {
             processControllerInternal(spaceKey, project, controllerPath, branch, apiSpecPageId, prefix, forceUpdate);
         } finally {
@@ -467,13 +467,20 @@ public class ApiSpecInitializationService {
 
         // 각 API 엔드포인트 페이지 생성/업데이트 (최대 25개)
         int apiCount = 0;
+        int totalApis = 0;
         if (apis != null && apis.isArray()) {
+            totalApis = Math.min(apis.size(), MAX_APIS_PER_CONTROLLER);
+            processingStatusTracker.updateProgress(controllerPath, 0, totalApis, "API 분석 준비 중...");
+
             for (JsonNode api : apis) {
                 if (apiCount >= MAX_APIS_PER_CONTROLLER) {
                     log.info("API 최대 처리 수({}) 도달, 나머지 skip: {}", MAX_APIS_PER_CONTROLLER, controllerPath);
                     break;
                 }
                 try {
+                    String apiDisplayName = getNodeText(api, "korean_name", getNodeText(api, "koreanName", getNodeText(api, "method_name", getNodeText(api, "methodName", "unknown"))));
+                    String apiName = prefix + "API - " + apiDisplayName;
+                    processingStatusTracker.updateProgress(controllerPath, apiCount, totalApis, "API 페이지 생성: " + apiName);
                     processApiEndpoint(spaceKey, project, code, api,
                             controllerPageId, prefix, forceUpdate, controllerMapping);
                     apiCount++;
@@ -1490,5 +1497,10 @@ public class ApiSpecInitializationService {
     private Long toLong(Object value) {
         if (value instanceof Number) return ((Number) value).longValue();
         return Long.parseLong(value.toString());
+    }
+
+    private String getNodeText(JsonNode node, String field, String defaultValue) {
+        JsonNode child = node.get(field);
+        return child != null ? child.asText() : defaultValue;
     }
 }

@@ -213,18 +213,45 @@
             return controllerPath.replaceAll('/', '_');
         }
 
-        function setRowProcessing(controllerPath) {
+        function setRowProcessing(controllerPath, progress) {
             const rowId = getRowId(controllerPath);
             const statusEl = document.getElementById('status-' + rowId);
             const actionEl = document.getElementById('action-' + rowId);
+
+            // 상태 배지
+            let badgeText = '진행중';
+            if (progress && progress.totalApis > 0) {
+                badgeText = progress.completedApis + '/' + progress.totalApis;
+            }
             if (statusEl) {
                 statusEl.innerHTML = '<span class="badge" style="background:#dbeafe;color:#2563eb;">' +
-                    '<span class="spinner-border spinner-border-sm me-1" style="width:12px;height:12px;"></span>진행중</span>';
+                    '<span class="spinner-border spinner-border-sm me-1" style="width:12px;height:12px;"></span>' + badgeText + '</span>';
             }
             if (actionEl) {
                 actionEl.innerHTML = '<button class="btn btn-outline-secondary btn-sm" disabled>' +
                     '<span class="spinner-border spinner-border-sm" style="width:14px;height:14px;"></span></button>';
             }
+
+            // 진행 상세 행 표시
+            const row = document.getElementById('row-' + rowId);
+            if (row && progress && progress.currentApiName) {
+                let progressRow = document.getElementById('progress-' + rowId);
+                if (!progressRow) {
+                    progressRow = document.createElement('tr');
+                    progressRow.id = 'progress-' + rowId;
+                    progressRow.className = 'progress-detail-row';
+                    row.parentNode.insertBefore(progressRow, row.nextSibling);
+                }
+                progressRow.innerHTML = '<td></td><td colspan="5">' +
+                    '<div class="ps-3 d-flex align-items-center" style="font-size:13px;">' +
+                    '<span class="spinner-border spinner-border-sm text-primary me-2" style="width:14px;height:14px;"></span>' +
+                    '<span class="text-muted">' + progress.currentApiName + '</span>' +
+                    '</div></td>';
+            }
+        }
+
+        function removeProgressRows() {
+            document.querySelectorAll('.progress-detail-row').forEach(row => row.remove());
         }
 
         const MAX_CONCURRENT = 2;
@@ -241,7 +268,7 @@
             serverActiveCount++;
 
             // 즉시 해당 행을 진행중 상태로 변경
-            setRowProcessing(controllerPath);
+            setRowProcessing(controllerPath, null);
             hadProcessing = true;
             setTimeout(pollProcessingStatus, 3000);
 
@@ -261,21 +288,76 @@
 
         // 진행 중인 Controller가 있었는지 추적
         let hadProcessing = false;
+        let reloadScheduled = false;
+        // 사용자가 직접 프로젝트를 선택했는지 추적 (URL에 projectId 파라미터가 있으면 직접 선택한 것)
+        let userSelectedProject = new URLSearchParams(window.location.search).has('projectId');
 
         function pollProcessingStatus() {
             fetch('/api/api-specs/processing')
                 .then(r => r.json())
                 .then(data => {
                     serverActiveCount = data.count;
-                    if (data.count > 0) {
+                    const currentProjectId = parseInt(document.getElementById('projectSelect').value);
+                    const processingProjectIds = data.projectIds || [];
+                    const initializingProjects = data.initializingProjects || [];
+                    const isActive = data.count > 0 || initializingProjects.length > 0;
+
+                    if (isActive) {
                         hadProcessing = true;
-                        data.processing.forEach(path => setRowProcessing(path));
+
+                        // 사용자가 직접 선택하지 않은 경우에만 처리 중인 프로젝트로 자동 전환
+                        if (!userSelectedProject
+                            && !processingProjectIds.includes(currentProjectId)
+                            && !initializingProjects.includes(currentProjectId)) {
+                            const targetId = initializingProjects[0] || (processingProjectIds.length > 0 ? processingProjectIds[0] : null);
+                            if (targetId) {
+                                window.location.href = '/api-specs?projectId=' + targetId;
+                                return;
+                            }
+                        }
+
+                        // DOM에 있는 행은 스피너 + progress 표시
+                        const progressData = data.progress || {};
+                        data.processing.forEach(path => {
+                            const rowId = getRowId(path);
+                            const statusEl = document.getElementById('status-' + rowId);
+                            if (statusEl) {
+                                setRowProcessing(path, progressData[path] || null);
+                            }
+                        });
+
+                        // 초기화 중인 프로젝트가 현재 프로젝트이면 안내 표시
+                        if (initializingProjects.includes(currentProjectId)) {
+                            showInitializingBanner();
+                        }
+
                         setTimeout(pollProcessingStatus, 3000);
-                    } else if (hadProcessing) {
+                    } else if (hadProcessing && !reloadScheduled) {
+                        // 모든 처리 완료 — 한 번만 리로드
+                        reloadScheduled = true;
+                        removeProgressRows();
                         location.reload();
+                    } else {
+                        // 처리 중인 것이 없으면 주기적으로 체크 (신규 프로젝트 추가 대비)
+                        setTimeout(pollProcessingStatus, 5000);
                     }
                 })
-                .catch(() => {});
+                .catch(() => {
+                    setTimeout(pollProcessingStatus, 5000);
+                });
+        }
+
+        function showInitializingBanner() {
+            if (document.getElementById('initBanner')) return;
+            const table = document.querySelector('.table-card');
+            if (!table) return;
+            const banner = document.createElement('div');
+            banner.id = 'initBanner';
+            banner.className = 'alert alert-info d-flex align-items-center mb-0 border-0 rounded-0';
+            banner.style.fontSize = '14px';
+            banner.innerHTML = '<span class="spinner-border spinner-border-sm me-2" style="width:16px;height:16px;"></span>' +
+                '프로젝트 초기화 중입니다. Controller 분석 및 API 명세서 생성이 곧 시작됩니다...';
+            table.insertBefore(banner, table.firstChild);
         }
 
         // 페이지 로드 시 진행 중인 작업 확인

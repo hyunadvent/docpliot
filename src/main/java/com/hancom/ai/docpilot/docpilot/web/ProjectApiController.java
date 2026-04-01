@@ -3,6 +3,9 @@ package com.hancom.ai.docpilot.docpilot.web;
 import com.hancom.ai.docpilot.docpilot.config.ConfigLoaderService;
 import com.hancom.ai.docpilot.docpilot.config.SystemSettingService;
 import com.hancom.ai.docpilot.docpilot.config.model.ConfluenceStructure;
+import com.hancom.ai.docpilot.docpilot.entity.ControllerPageMappingEntity;
+import com.hancom.ai.docpilot.docpilot.repository.ApiPageMappingRepository;
+import com.hancom.ai.docpilot.docpilot.repository.ControllerPageMappingRepository;
 import com.hancom.ai.docpilot.docpilot.target.confluence.ConfluenceTargetService;
 import com.hancom.ai.docpilot.docpilot.webhook.ApiSpecInitializationService;
 import com.hancom.ai.docpilot.docpilot.webhook.DjangoApiSpecService;
@@ -30,6 +33,9 @@ public class ProjectApiController {
     private final ApiSpecInitializationService apiSpecInitializationService;
     private final ExpressApiSpecService expressApiSpecService;
     private final DjangoApiSpecService djangoApiSpecService;
+    private final ControllerPageMappingRepository controllerPageMappingRepository;
+    private final ApiPageMappingRepository apiPageMappingRepository;
+    private final ProcessingStatusTracker processingStatusTracker;
 
     public ProjectApiController(ConfigLoaderService configLoaderService,
                                 SystemSettingService settingService,
@@ -37,7 +43,10 @@ public class ProjectApiController {
                                 ProjectInitializationService projectInitializationService,
                                 ApiSpecInitializationService apiSpecInitializationService,
                                 ExpressApiSpecService expressApiSpecService,
-                                DjangoApiSpecService djangoApiSpecService) {
+                                DjangoApiSpecService djangoApiSpecService,
+                                ControllerPageMappingRepository controllerPageMappingRepository,
+                                ApiPageMappingRepository apiPageMappingRepository,
+                                ProcessingStatusTracker processingStatusTracker) {
         this.configLoaderService = configLoaderService;
         this.settingService = settingService;
         this.confluenceTargetService = confluenceTargetService;
@@ -45,6 +54,9 @@ public class ProjectApiController {
         this.apiSpecInitializationService = apiSpecInitializationService;
         this.expressApiSpecService = expressApiSpecService;
         this.djangoApiSpecService = djangoApiSpecService;
+        this.controllerPageMappingRepository = controllerPageMappingRepository;
+        this.apiPageMappingRepository = apiPageMappingRepository;
+        this.processingStatusTracker = processingStatusTracker;
     }
 
     @GetMapping
@@ -145,6 +157,7 @@ public class ProjectApiController {
         projects.remove(target);
         structure.setProjects(projects);
         configLoaderService.saveConfluenceStructure(structure);
+        deleteProjectMappings(projectId);
         return ResponseEntity.ok(Map.of("message", "프로젝트가 삭제되었습니다."));
     }
 
@@ -162,10 +175,24 @@ public class ProjectApiController {
             return ResponseEntity.status(403).body(Map.of("message", "권한이 없습니다."));
         }
 
+        Long targetProjectId = target.getGitlabProjectId();
         projects.remove(index);
         structure.setProjects(projects);
         configLoaderService.saveConfluenceStructure(structure);
+        if (targetProjectId != null) {
+            deleteProjectMappings(targetProjectId);
+        }
         return ResponseEntity.ok(Map.of("message", "프로젝트가 삭제되었습니다."));
+    }
+
+    private void deleteProjectMappings(Long projectId) {
+        List<ControllerPageMappingEntity> controllers = controllerPageMappingRepository.findByGitlabProjectId(projectId);
+        for (ControllerPageMappingEntity controller : controllers) {
+            apiPageMappingRepository.deleteAll(
+                    apiPageMappingRepository.findByControllerMappingId(controller.getId()));
+        }
+        controllerPageMappingRepository.deleteAll(controllers);
+        log.info("프로젝트 매핑 데이터 삭제 완료: projectId={}, controllers={}건", projectId, controllers.size());
     }
 
     // ===== 공통 라이브러리 관리 =====
@@ -290,29 +317,36 @@ public class ProjectApiController {
      * 프로젝트 추가 시 기본 pages 설정을 생성합니다.
      */
     private void initializeProjectAsync(String spaceKey, ConfluenceStructure.ProjectMapping project) {
-        CompletableFuture.runAsync(() -> {
-            // 서비스 개요 및 구성도 자동 생성
-            try {
-                projectInitializationService.initializeProject(spaceKey, project);
-                log.info("프로젝트 초기 페이지 생성 완료: {}", project.getGitlabPath());
-            } catch (Exception e) {
-                log.error("프로젝트 초기 페이지 생성 실패: {}", project.getGitlabPath(), e);
-            }
+        Long projectId = project.getGitlabProjectId();
+        processingStatusTracker.markProjectInitializing(projectId);
 
-            // API 명세서 자동 생성
-            int maxControllers = settingService.getInt(SystemSettingService.API_SPEC_MAX_CONTROLLERS, 0);
-            if (maxControllers != 0) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                // 서비스 개요 및 구성도 자동 생성
                 try {
-                    String platform = project.getPlatform() != null ? project.getPlatform() : "springboot";
-                    switch (platform) {
-                        case "express" -> expressApiSpecService.initializeApiSpecForProject(spaceKey, project, maxControllers);
-                        case "django" -> djangoApiSpecService.initializeApiSpecForProject(spaceKey, project, maxControllers);
-                        default -> apiSpecInitializationService.initializeApiSpecForProject(spaceKey, project, maxControllers);
-                    }
-                    log.info("API 명세서 초기 생성 완료: {} (platform={}, max={})", project.getGitlabPath(), platform, maxControllers);
+                    projectInitializationService.initializeProject(spaceKey, project);
+                    log.info("프로젝트 초기 페이지 생성 완료: {}", project.getGitlabPath());
                 } catch (Exception e) {
-                    log.error("API 명세서 초기 생성 실패: {}", project.getGitlabPath(), e);
+                    log.error("프로젝트 초기 페이지 생성 실패: {}", project.getGitlabPath(), e);
                 }
+
+                // API 명세서 자동 생성
+                int maxControllers = settingService.getInt(SystemSettingService.API_SPEC_MAX_CONTROLLERS, 0);
+                if (maxControllers != 0) {
+                    try {
+                        String platform = project.getPlatform() != null ? project.getPlatform() : "springboot";
+                        switch (platform) {
+                            case "express" -> expressApiSpecService.initializeApiSpecForProject(spaceKey, project, maxControllers);
+                            case "django" -> djangoApiSpecService.initializeApiSpecForProject(spaceKey, project, maxControllers);
+                            default -> apiSpecInitializationService.initializeApiSpecForProject(spaceKey, project, maxControllers);
+                        }
+                        log.info("API 명세서 초기 생성 완료: {} (platform={}, max={})", project.getGitlabPath(), platform, maxControllers);
+                    } catch (Exception e) {
+                        log.error("API 명세서 초기 생성 실패: {}", project.getGitlabPath(), e);
+                    }
+                }
+            } finally {
+                processingStatusTracker.markProjectInitialized(projectId);
             }
         });
     }

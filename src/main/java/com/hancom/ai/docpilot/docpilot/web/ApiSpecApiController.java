@@ -46,9 +46,27 @@ public class ApiSpecApiController {
     @GetMapping("/processing")
     public ResponseEntity<Map<String, Object>> getProcessingStatus() {
         Set<String> processing = processingStatusTracker.getProcessingControllers();
+        Set<Long> projectIds = processingStatusTracker.getProcessingProjectIds();
+        Set<Long> initializingProjects = processingStatusTracker.getInitializingProjects();
+        Map<String, ProcessingStatusTracker.ControllerProgress> progress = processingStatusTracker.getControllerProgressMap();
+
+        // progress를 직렬화 가능한 형태로 변환
+        Map<String, Map<String, Object>> progressMap = new java.util.HashMap<>();
+        for (var entry : progress.entrySet()) {
+            ProcessingStatusTracker.ControllerProgress p = entry.getValue();
+            progressMap.put(entry.getKey(), Map.of(
+                    "completedApis", p.getCompletedApis(),
+                    "totalApis", p.getTotalApis(),
+                    "currentApiName", p.getCurrentApiName() != null ? p.getCurrentApiName() : ""
+            ));
+        }
+
         return ResponseEntity.ok(Map.of(
                 "processing", processing,
-                "count", processing.size()
+                "count", processing.size(),
+                "projectIds", projectIds,
+                "initializingProjects", initializingProjects,
+                "progress", progressMap
         ));
     }
 
