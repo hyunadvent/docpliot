@@ -35,7 +35,7 @@
 <body>
 
 <h1>DocPilot 개발기</h1>
-<p class="subtitle">문서 자동화 에이전트 서버 — 설계부터 구현까지<br>2026년 3월</p>
+<p class="subtitle">문서 자동화 에이전트 서버 — 설계부터 구현까지<br>2026년 3월 ~ 4월</p>
 
 <div class="toc">
 <h3>목차</h3>
@@ -324,6 +324,36 @@ LLM이 동일한 서식으로 문서 생성</code></pre>
     <td>Controller 그룹 페이지에 내용 없음</td>
     <td>Controller 정보 테이블 + API 목록 + children 목차 매크로 추가</td>
   </tr>
+  <tr>
+    <td>6차</td>
+    <td>API 명세서 생성이 장시간 소요되나 진행 상태 확인 불가</td>
+    <td><code>ProcessingStatusTracker</code> 도입 — 동시 처리 제한(최대 2건) 및 Controller/API 단위 실시간 진행률 추적</td>
+  </tr>
+  <tr>
+    <td>7차</td>
+    <td>API 명세서에서 DTO 타입 정보가 누락되거나 부정확</td>
+    <td>Java import 문 경로를 분석하여 DTO 소스 파일을 정확히 탐색 + 공통 라이브러리 프로젝트까지 참조 범위 확대</td>
+  </tr>
+  <tr>
+    <td>8차</td>
+    <td>Confluence에서 수동 삭제한 페이지가 DB에는 남아 재생성 불가</td>
+    <td>서버 시작 시 <code>validateDbWithConfluence()</code>로 DB-Confluence 상태 동기화, 삭제된 페이지는 미처리 상태로 복원</td>
+  </tr>
+  <tr>
+    <td>9차</td>
+    <td>Spring Boot 프로젝트만 지원 — 다른 프레임워크 문서화 불가</td>
+    <td>플랫폼 감지 후 <code>DjangoApiSpecService</code>, <code>ExpressApiSpecService</code>로 라우팅하는 멀티 프레임워크 아키텍처 구현</td>
+  </tr>
+  <tr>
+    <td>10차</td>
+    <td>외부 연동 설정 변경 시 서버 재시작 필요</td>
+    <td><code>SystemSettingService</code> + DB 기반 설정 관리 — UI에서 GitLab/Confluence/API 명세서 설정을 변경하면 클라이언트 즉시 재생성</td>
+  </tr>
+  <tr>
+    <td>11차</td>
+    <td>프로젝트 등록 시 초기 페이지 생성까지 대기 시간이 길어 UX 저하</td>
+    <td><code>CompletableFuture.runAsync()</code>로 비동기 처리 — 등록 즉시 응답 후 백그라운드에서 페이지 생성</td>
+  </tr>
 </table>
 
 <h3>9.2 현재 구현 상태</h3>
@@ -335,6 +365,14 @@ LLM이 동일한 서식으로 문서 생성</code></pre>
   <tr><td>Controller 변경 시 API 명세서 업데이트</td><td><span class="badge badge-done">완료</span></td></tr>
   <tr><td>중복 Controller 페이지 방지</td><td><span class="badge badge-done">완료</span></td></tr>
   <tr><td>페이지 너비 자동 설정</td><td><span class="badge badge-done">완료</span></td></tr>
+  <tr><td>API 명세서 생성 실시간 진행률 추적</td><td><span class="badge badge-done">완료</span></td></tr>
+  <tr><td>DTO import 경로 탐색 + 공통 라이브러리 참조</td><td><span class="badge badge-done">완료</span></td></tr>
+  <tr><td>서버 재시작 시 DB-Confluence 동기화</td><td><span class="badge badge-done">완료</span></td></tr>
+  <tr><td>멀티 프레임워크 지원 (Django, Express.js)</td><td><span class="badge badge-done">완료</span></td></tr>
+  <tr><td>시스템 설정 UI (외부 연동 실시간 변경)</td><td><span class="badge badge-done">완료</span></td></tr>
+  <tr><td>프로젝트 등록 비동기 처리</td><td><span class="badge badge-done">완료</span></td></tr>
+  <tr><td>인증/권한 시스템 (로그인, 역할 기반 접근 제어)</td><td><span class="badge badge-done">완료</span></td></tr>
+  <tr><td>관리 UI (MUI 디자인, 대시보드/프로젝트 관리/API 현황)</td><td><span class="badge badge-done">완료</span></td></tr>
   <tr><td>Jira 연동 (주간 보고서)</td><td><span class="badge badge-future">추후</span></td></tr>
   <tr><td>Slack 알림</td><td><span class="badge badge-future">추후</span></td></tr>
 </table>
@@ -345,11 +383,14 @@ LLM이 동일한 서식으로 문서 생성</code></pre>
   <li><strong>프롬프트만으로는 한계가 있다</strong> — 서식의 세밀한 부분(너비, 특정 CSS 속성)은 프롬프트로 100% 제어하기 어렵습니다. API를 통한 후처리로 보완하는 것이 실용적입니다.</li>
   <li><strong>점진적 처리가 현실적이다</strong> — 32개 Controller를 한 번에 처리하면 60분 이상 소요됩니다. 서버 시작마다 일부씩 처리하는 점진적 접근이 운영 환경에 적합합니다.</li>
   <li><strong>테스트가 리팩토링의 안전망이다</strong> — 58개의 기존 테스트가 있어, 구조 변경 시마다 빠르게 회귀를 확인할 수 있었습니다.</li>
+  <li><strong>외부 시스템과의 상태 동기화는 필수다</strong> — Confluence에서 수동 삭제된 페이지를 DB가 인지하지 못하면 재생성이 불가능합니다. 서버 시작 시 양쪽 상태를 검증하는 루틴이 운영 안정성을 크게 높였습니다.</li>
+  <li><strong>장시간 작업은 비동기 + 진행률이 답이다</strong> — LLM 호출이 포함된 작업은 수십 초~수 분이 소요됩니다. 즉시 응답 후 백그라운드 처리하되, 진행률을 실시간으로 보여주는 것이 사용자 경험에 결정적입니다.</li>
+  <li><strong>멀티 프레임워크 확장은 파이프라인 구조의 강점이다</strong> — Source → LLM → Target 구조 덕분에 Django, Express.js 지원을 추가할 때 LLM/Target 단계는 거의 변경 없이 Source 측 파서만 새로 구현하면 됐습니다.</li>
 </ul>
 
 <hr style="margin-top: 50px;">
 <p style="text-align: center; color: #999; font-size: 12px;">
-DocPilot Development Report — 2026.03.23
+DocPilot Development Report — 2026.04.02
 </p>
 
 </body>
