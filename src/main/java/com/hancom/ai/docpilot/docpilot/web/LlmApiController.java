@@ -5,7 +5,10 @@ import com.hancom.ai.docpilot.docpilot.config.model.LLMConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -16,9 +19,11 @@ import java.util.Map;
 public class LlmApiController {
 
     private final ConfigLoaderService configLoaderService;
+    private final WebClient webClient;
 
-    public LlmApiController(ConfigLoaderService configLoaderService) {
+    public LlmApiController(ConfigLoaderService configLoaderService, WebClient.Builder webClientBuilder) {
         this.configLoaderService = configLoaderService;
+        this.webClient = webClientBuilder.build();
     }
 
     @GetMapping
@@ -84,23 +89,81 @@ public class LlmApiController {
     @PutMapping("/{name}/activate")
     public ResponseEntity<Map<String, String>> activate(@PathVariable String name) {
         LLMConfig config = configLoaderService.getLlmConfig();
-        boolean found = false;
+        LLMConfig.LLM target = null;
 
         for (LLMConfig.LLM llm : config.getLlms()) {
             if (llm.getName().equals(name)) {
-                llm.setActive(true);
-                found = true;
-            } else {
-                llm.setActive(false);
+                target = llm;
+                break;
             }
         }
 
-        if (!found) {
+        if (target == null) {
             return ResponseEntity.notFound().build();
+        }
+
+        // API Key 유효성 검증
+        String validationError = validateApiKey(target.getName(), target.getApiKey());
+        if (validationError != null) {
+            log.warn("LLM API Key 검증 실패: provider={}, error={}", name, validationError);
+            return ResponseEntity.badRequest().body(Map.of("message", validationError));
+        }
+
+        for (LLMConfig.LLM llm : config.getLlms()) {
+            llm.setActive(llm.getName().equals(name));
         }
 
         configLoaderService.saveLlmConfig(config);
         return ResponseEntity.ok(Map.of("message", name + " 프로바이더가 활성화되었습니다."));
+    }
+
+    private String validateApiKey(String provider, String apiKey) {
+        if (apiKey == null || apiKey.isBlank()) {
+            return "API Key가 설정되지 않았습니다.";
+        }
+
+        try {
+            switch (provider) {
+                case "openai" -> {
+                    webClient.get()
+                            .uri("https://api.openai.com/v1/models")
+                            .header("Authorization", "Bearer " + apiKey)
+                            .retrieve()
+                            .bodyToMono(String.class)
+                            .timeout(Duration.ofSeconds(10))
+                            .block();
+                }
+                case "claude" -> {
+                    webClient.post()
+                            .uri("https://api.anthropic.com/v1/messages")
+                            .header("x-api-key", apiKey)
+                            .header("anthropic-version", "2023-06-01")
+                            .header("Content-Type", "application/json")
+                            .bodyValue(Map.of(
+                                    "model", "claude-sonnet-4-20250514",
+                                    "max_tokens", 1,
+                                    "messages", List.of(Map.of("role", "user", "content", "hi"))
+                            ))
+                            .retrieve()
+                            .bodyToMono(String.class)
+                            .timeout(Duration.ofSeconds(10))
+                            .block();
+                }
+                default -> {
+                    return "지원하지 않는 프로바이더: " + provider;
+                }
+            }
+            log.info("LLM API Key 검증 성공: provider={}", provider);
+            return null;
+        } catch (WebClientResponseException.Unauthorized e) {
+            return "API Key가 유효하지 않습니다. (401 Unauthorized)";
+        } catch (WebClientResponseException.Forbidden e) {
+            return "API Key의 접근 권한이 없습니다. (403 Forbidden)";
+        } catch (WebClientResponseException e) {
+            return "API 검증 중 오류 발생: " + e.getStatusCode();
+        } catch (Exception e) {
+            return "API 연결 실패: " + e.getMessage();
+        }
     }
 
     @DeleteMapping("/{name}")
